@@ -1,0 +1,4 @@
+# V1 dependencies.  Install with:  pip install -r requirements.txt
+anthropic     # official Claude API client
+streamlit     # simple local web UI
+# (Versions left unpinned for now; once installed we can pin them here for reproducibility.)

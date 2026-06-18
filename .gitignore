@@ -1,0 +1,15 @@
+# Secrets — never commit your API key
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Saved client data is generated at runtime. Kept local for now.
+# Uncomment the next line if you'd rather not track it in git:
+# data/clients/
