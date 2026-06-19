@@ -81,12 +81,43 @@ Finance AI/
 ## Roadmap (one stage at a time — do NOT bundle)
 
 - **V1** — the core pipeline above. ← we are here
-- **V1.5** — two-persona conversation simulator (one AI plays a client, one plays the advisor;
-  they talk for N turns → synthetic transcript → feed into the V1 pipeline). Purpose: generate
-  realistic test data, since Shaun has no real client conversations. One workflow, two roles.
+- **V1.5** — conversation simulator with three modes:
+  1. **Batch**: two AI personas (client + wealth manager) auto-generate a full synthetic transcript fast → feeds into V1 pipeline
+  2. **Human-in-the-loop**: Shaun plays one side (client OR advisor), AI plays the other in real back-and-forth
+  3. **Real-time / live**: simulation runs in real time with audio so Shaun can listen to the call as it happens, with the V1 pipeline running live on the output
 - **V2+ (separate, deliberate stages, no required order):** RAG over past meetings · vector DB
   (semantic search of history) · a real evaluation system (score accuracy/consistency/hallucination
   across many transcripts) · agents (AI picks which steps to run) · multi-agent · MCP tool connections.
+- **V3 — voice personas + live platform integration (final vision):** AI personas get real voices
+  (TTS with distinct character voices). Modes: AI talks to AI (full audio call simulation you listen
+  to) · Shaun talks to an AI persona in real time (STT → AI responds → TTS) · AI personas join or
+  simulate a Zoom call. This is the "you can actually hear the meeting happening" endgame.
+
+## Final UI vision (additive — each version builds on the last)
+
+The UI grows incrementally. Nothing gets rebuilt from scratch; features get added on top.
+
+**What V1 UI does (now):** paste notes → pick client → run → see 4 outputs in tabs → download email.
+
+**Confirmed future UI features (add as stages are built):**
+- Conversation list in sidebar — click any past meeting to open it
+- Full transcript view per meeting + audio playback (once V1.5/V3 voice is built)
+- Semantic search across meetings — ask a question like "when did John mention college funding?" not keyword search (needs RAG / V2)
+- Creative Q&A against the full meeting history — "given X, Y, Z what do you recommend?" routed to a WM-specialized LLM (this is model routing / agentic — V2+)
+- Simulation launcher inside the UI — trigger a test conversation without needing the terminal; option to play one side yourself or have AI play both
+- Client persona toggles for simulation — set age, risk profile, life stage, personality to shape how the AI client talks
+- Action item tracker — mark items done, set reminders, see outstanding items across all clients
+
+**Features Shaun didn't mention but should be in there:**
+- Export full meeting output as PDF (not just email .txt) — makes the tool usable in a real advisory context
+- Meeting timeline view — see all meetings for a client in chronological order with key facts surfaced
+- Profile diff — "what changed about this client since last meeting?" shown automatically
+
+**Optional / decide later:**
+- Calendar integration — auto-suggest follow-up meeting based on action items
+- Document upload — drop in a PDF transcript instead of pasting text
+- Multi-advisor support — if this ever becomes a team tool, meetings are tagged by advisor
+- Comparison view — look at two clients side by side (useful for portfolio benchmarking)
 
 ## Out of scope for V1 (and a while)
 
