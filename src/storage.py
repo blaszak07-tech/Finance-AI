@@ -47,3 +47,20 @@ def list_clients() -> list[str]:
     if not DATA_DIR.exists():
         return []
     return [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
+
+
+def rename_client(old_id: str, new_name: str) -> str:
+    new_id = new_name.strip().lower().replace(" ", "_")
+    old_path = DATA_DIR / old_id
+    new_path = DATA_DIR / new_id
+    if new_path.exists():
+        raise ValueError(f"A client named '{new_name}' already exists.")
+    old_path.rename(new_path)
+    return new_id
+
+
+def delete_client(client_id: str) -> None:
+    import shutil
+    path = DATA_DIR / client_id
+    if path.exists():
+        shutil.rmtree(path)
