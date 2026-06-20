@@ -46,23 +46,26 @@ just shipping a working app. Build for depth, explain the "why," don't just hand
 
 ## Current status
 
-- ✅ Memory system: `PROJECT_NOTES.md` + `DECISIONS.md` + `CLAUDE.md` (CLAUDE.md auto-loads each
-  session and tells Claude to read these first — so a reset re-orients automatically).
-- ✅ Plan approved. Repo `git init`'d; V1 scaffold created (`src/`, `data/clients/`, `requirements.txt`,
-  `.gitignore`, `.env.example`).
-- ⬜ Next: build the pipeline (see build order). GitHub remote + Anthropic API key pending Shaun.
-- Local env: Python 3.11 ✓, git ✓. Before the `llm.py` step: `pip install -r requirements.txt` + an
-  Anthropic API key in `.env`.
+- ✅ Memory system: `PROJECT_NOTES.md` + `DECISIONS.md` + `CLAUDE.md`
+- ✅ Scaffold: `src/`, `data/clients/`, `requirements.txt`, `.gitignore`, `.env.example`
+- ✅ `src/llm.py` — single Haiku call end-to-end
+- ✅ `src/storage.py` + `src/profile.py` — JSON persistence layer
+- ✅ `src/prompts.py` + `src/chain.py` — 4-step prompt chain
+- ✅ `app.py` — Streamlit UI (client picker, new meeting, history view, rename/delete)
+- ✅ Profile auto-extraction — facts extracted from notes and persisted after every meeting
+- ✅ Meeting history view — all past meetings per client, newest first, full output in tabs
+- **V1 is complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
+- Local env: Python 3.11, pip3, Anthropic key in `.env`. Start UI: `PATH="$PATH:/Users/shaunblaszak/Library/Python/3.11/bin" streamlit run app.py`
 
 ## Build order (each step independently testable)
 
 1. ✅ Skeleton — folders, `requirements.txt`, `.gitignore`, `.env.example`.
-2. ⬜ `src/llm.py` — one Haiku call end-to-end (needs API key). Proves the SDK + key work.
-3. ⬜ `src/storage.py` + `src/profile.py` — JSON read/write + client profile (no key, no cost).
-4. ⬜ `src/prompts.py` + `src/chain.py` — the 4-step chain, tested on a sample note in the terminal.
-5. ⬜ `app.py` — Streamlit UI: paste → run → show the 4 outputs → save.
-6. ⬜ Wire the profile-memory update into the flow.
-7. ⬜ Per-client meeting history view.
+2. ✅ `src/llm.py` — one Haiku call end-to-end.
+3. ✅ `src/storage.py` + `src/profile.py` — JSON read/write + client profile.
+4. ✅ `src/prompts.py` + `src/chain.py` — the 4-step chain.
+5. ✅ `app.py` — Streamlit UI: client picker → paste → run → 4 outputs → save.
+6. ✅ Profile auto-extraction wired into the chain.
+7. ✅ Per-client meeting history view in the UI.
 
 ## Repo structure
 

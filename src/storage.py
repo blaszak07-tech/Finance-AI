@@ -27,8 +27,19 @@ def save_meeting(client_id: str, meeting: dict) -> Path:
 
 def load_meetings(client_id: str) -> list[dict]:
     meetings_dir = _meetings_dir(client_id)
-    files = sorted(meetings_dir.glob("*.json"))
-    return [json.loads(f.read_text()) for f in files]
+    files = sorted(meetings_dir.glob("*.json"), reverse=True)  # newest first
+    meetings = []
+    for f in files:
+        data = json.loads(f.read_text())
+        # Parse timestamp from filename: YYYYMMDD_HHMMSS.json
+        stem = f.stem
+        try:
+            from datetime import datetime
+            data["_timestamp"] = datetime.strptime(stem, "%Y%m%d_%H%M%S").strftime("%B %d, %Y — %I:%M %p")
+        except ValueError:
+            data["_timestamp"] = stem
+        meetings.append(data)
+    return meetings
 
 
 def save_profile(client_id: str, profile: dict) -> None:
