@@ -89,6 +89,12 @@ if run:
 
     st.success("Done — meeting saved to client history")
 
+    new_facts = result.get("new_profile_facts", {})
+    if new_facts:
+        with st.expander(f"Profile updated — {len(new_facts)} new fact(s) learned", expanded=True):
+            for k, v in new_facts.items():
+                st.markdown(f"**{k.replace('_', ' ').title()}:** {v}")
+
     tab_summary, tab_actions, tab_flags, tab_email = st.tabs(
         ["Summary", "Action Items", "Planning Flags", "Follow-up Email"]
     )

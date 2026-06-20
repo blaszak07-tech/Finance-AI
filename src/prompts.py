@@ -37,6 +37,21 @@ Client profile context:
 Identify any portfolio or planning flags."""
 
 
+PROFILE_EXTRACT_SYSTEM = """You are extracting structured facts about a wealth management client
+from meeting notes. Return ONLY a valid JSON object — no explanation, no markdown, no code fences.
+Keys should be short snake_case labels. Values should be concise strings.
+Only include facts that are new or updated compared to the existing profile.
+If nothing new was learned, return an empty object: {}"""
+
+PROFILE_EXTRACT_USER = """Existing profile:
+{profile}
+
+Meeting notes:
+{notes}
+
+Extract any new or updated client facts as a JSON object."""
+
+
 EMAIL_SYSTEM = """You are an assistant drafting a professional follow-up email on behalf of a
 wealth management advisor. The tone should be warm, professional, and concise.
 Include: a thank-you for the meeting, a brief recap of key points, next steps, and a closing."""

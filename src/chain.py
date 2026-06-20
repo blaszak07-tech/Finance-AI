@@ -1,15 +1,17 @@
+import json
 from src.llm import call
-from src.profile import profile_summary
+from src.profile import profile_summary, update_profile
 from src.prompts import (
     SUMMARY_SYSTEM, SUMMARY_USER,
     ACTION_ITEMS_SYSTEM, ACTION_ITEMS_USER,
     FLAGS_SYSTEM, FLAGS_USER,
     EMAIL_SYSTEM, EMAIL_USER,
+    PROFILE_EXTRACT_SYSTEM, PROFILE_EXTRACT_USER,
 )
 
 
 def run_chain(client_id: str, notes: str) -> dict:
-    """Run the full 4-step prompt chain on meeting notes. Returns all outputs as a dict."""
+    """Run the full prompt chain on meeting notes. Returns all outputs + profile updates."""
     profile = profile_summary(client_id)
 
     summary = call(
@@ -32,9 +34,24 @@ def run_chain(client_id: str, notes: str) -> dict:
         system=EMAIL_SYSTEM,
     )
 
+    # Extract new profile facts and persist them
+    raw = call(
+        prompt=PROFILE_EXTRACT_USER.format(notes=notes, profile=profile),
+        system=PROFILE_EXTRACT_SYSTEM,
+    )
+    try:
+        cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        new_facts = json.loads(cleaned)
+    except json.JSONDecodeError:
+        new_facts = {}
+
+    if new_facts:
+        update_profile(client_id, new_facts)
+
     return {
         "summary": summary,
         "action_items": action_items,
         "flags": flags,
         "email": email,
+        "new_profile_facts": new_facts,
     }
