@@ -3,6 +3,11 @@ from src.chain import run_chain
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
+
+def md(text: str) -> None:
+    """Render AI-generated markdown, escaping $ so Streamlit doesn't treat them as LaTeX."""
+    st.markdown(text.replace("$", r"\$"))
+
 st.set_page_config(page_title="WM Meeting Assistant", layout="wide")
 
 st.title("Wealth Management Meeting Assistant")
@@ -100,13 +105,13 @@ with tab_new:
             ["Summary", "Action Items", "Planning Flags", "Follow-up Email"]
         )
         with r_summary:
-            st.markdown(result["summary"])
+            md(result["summary"])
         with r_actions:
-            st.markdown(result["action_items"])
+            md(result["action_items"])
         with r_flags:
-            st.markdown(result["flags"])
+            md(result["flags"])
         with r_email:
-            st.markdown(result["email"])
+            md(result["email"])
             st.divider()
             st.download_button(
                 "Download email as .txt",
@@ -130,12 +135,12 @@ with tab_history:
                     ["Summary", "Action Items", "Planning Flags", "Follow-up Email", "Raw Notes"]
                 )
                 with h_summary:
-                    st.markdown(m.get("summary", "—"))
+                    md(m.get("summary", "—"))
                 with h_actions:
-                    st.markdown(m.get("action_items", "—"))
+                    md(m.get("action_items", "—"))
                 with h_flags:
-                    st.markdown(m.get("flags", "—"))
+                    md(m.get("flags", "—"))
                 with h_email:
-                    st.markdown(m.get("email", "—"))
+                    md(m.get("email", "—"))
                 with h_notes:
                     st.text(m.get("notes", "—"))
