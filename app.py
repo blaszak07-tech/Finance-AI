@@ -152,11 +152,9 @@ with tab_simulate:
     )
 
     sim_ready = all([sim_name.strip(), sim_situation.strip(), sim_concerns.strip()])
-    simulate_btn = st.button("Generate transcript", type="primary", disabled=not sim_ready, key="sim_btn")
-
-    if simulate_btn:
+    if st.button("Generate transcript", type="primary", disabled=not sim_ready, key="sim_btn"):
         with st.spinner("Simulating conversation..."):
-            transcript = run_simulation(
+            st.session_state.sim_transcript = run_simulation(
                 name=sim_name.strip(),
                 age=int(sim_age),
                 situation=sim_situation.strip(),
@@ -166,6 +164,9 @@ with tab_simulate:
                 num_exchanges=int(sim_exchanges),
             )
 
+    # Persisted transcript (survives reruns so the pipeline button works)
+    transcript = st.session_state.get("sim_transcript")
+    if transcript:
         st.subheader("Generated transcript")
         st.text(transcript)
         st.divider()
