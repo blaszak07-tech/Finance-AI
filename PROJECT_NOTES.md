@@ -55,13 +55,12 @@ just shipping a working app. Build for depth, explain the "why," don't just hand
 - ✅ Profile auto-extraction — facts extracted from notes and persisted after every meeting
 - ✅ Meeting history view — all past meetings per client, newest first, full output in tabs
 - **V1 complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
-- **UI consolidated to 4 tabs: Voice · Ask · Agents · History.** (Earlier New Meeting / Simulate /
-  Live Meeting tabs were removed as redundant — Voice supersedes them. The simulator/chat *code* in
-  `src/simulator.py` still backs Voice: `simulate_conversation`, `ai_opening_line`, `ai_reply`.)
-- **Pipeline auto-runs** when a Voice conversation ends; the meeting is saved and only the **summary**
+- **UI = 5 tabs: New Meeting · Voice · Ask · Agents · History.** (Simulate / Live Meeting tabs were
+  removed as redundant — Voice supersedes them. The simulator/chat *code* in `src/simulator.py` still
+  backs Voice: `simulate_conversation`, `ai_opening_line`, `ai_reply`.)
+- **New Meeting** = paste a raw transcript/notes → run pipeline → shows the 4 outputs inline + saves.
+- **Voice** pipeline auto-runs when a conversation ends; the meeting is saved and only the **summary**
   shows at the bottom of the transcript. Full output (action items, flags, email) is viewed in History.
-  Note: there is no longer a "paste a raw external transcript → pipeline" entry point — meetings are
-  created via Voice. Easy to re-add later if needed.
 - ✅ Voice tab (all free/local): "Two AI voices" (voiced conversation, Daniel=advisor/Samantha=client,
   one audio file + timestamped transcript) and "I speak" (mic → faster-whisper STT → AI text+spoken reply).
   TTS = macOS `say`. STT = faster-whisper `base`. Real-time/full-duplex interrupt is still V3 (WebRTC).

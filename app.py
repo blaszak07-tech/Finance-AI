@@ -90,7 +90,52 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_voice, tab_ask, tab_agents, tab_history = st.tabs(["Voice", "Ask", "Agents", "History"])
+tab_new, tab_voice, tab_ask, tab_agents, tab_history = st.tabs(
+    ["New Meeting", "Voice", "Ask", "Agents", "History"]
+)
+
+# ── New Meeting ──────────────────────────────────────────────
+with tab_new:
+    notes = st.text_area(
+        "Paste raw notes or a transcript",
+        height=250,
+        placeholder="e.g. John wants to retire at 60, worried about market volatility...",
+        label_visibility="collapsed",
+    )
+
+    run = st.button("Run", type="primary", disabled=not notes.strip())
+
+    if run:
+        with st.spinner("Running through Haiku..."):
+            result = run_chain(client_id, notes)
+            save_meeting(client_id, {"notes": notes, **result})
+
+        st.success("Done — meeting saved to history")
+
+        new_facts = result.get("new_profile_facts", {})
+        if new_facts:
+            with st.expander(f"Profile updated — {len(new_facts)} new fact(s) learned", expanded=True):
+                for k, v in new_facts.items():
+                    st.markdown(f"**{k.replace('_', ' ').title()}:** {v}")
+
+        r_summary, r_actions, r_flags, r_email = st.tabs(
+            ["Summary", "Action Items", "Planning Flags", "Follow-up Email"]
+        )
+        with r_summary:
+            md(result["summary"])
+        with r_actions:
+            md(result["action_items"])
+        with r_flags:
+            md(result["flags"])
+        with r_email:
+            md(result["email"])
+            st.divider()
+            st.download_button(
+                "Download email as .txt",
+                data=result["email"],
+                file_name=f"{client_id}_followup.txt",
+                mime="text/plain",
+            )
 
 
 # ── Voice ────────────────────────────────────────────────────
