@@ -92,17 +92,23 @@ Finance AI/
 ## Roadmap (one stage at a time — do NOT bundle)
 
 - **V1** — the core pipeline above. ← we are here
-- **V1.5** — conversation simulator with three modes:
-  1. **Batch**: two AI personas (client + wealth manager) auto-generate a full synthetic transcript fast → feeds into V1 pipeline
-  2. **Human-in-the-loop**: Shaun plays one side (client OR advisor), AI plays the other in real back-and-forth
-  3. **Real-time / live**: simulation runs in real time with audio so Shaun can listen to the call as it happens, with the V1 pipeline running live on the output
+- **V1.5** — conversation simulator. DONE: ✅ batch · ✅ human-in-the-loop chat · ✅ push-to-talk voice
+  (two-AI voiced conversation with timestamps + "I speak" mode). All free/local (macOS `say` + faster-whisper).
 - **V2+ (separate, deliberate stages, no required order):** RAG over past meetings · vector DB
   (semantic search of history) · a real evaluation system (score accuracy/consistency/hallucination
   across many transcripts) · agents (AI picks which steps to run) · multi-agent · MCP tool connections.
-- **V3 — voice personas + live platform integration (final vision):** AI personas get real voices
-  (TTS with distinct character voices). Modes: AI talks to AI (full audio call simulation you listen
-  to) · Shaun talks to an AI persona in real time (STT → AI responds → TTS) · AI personas join or
-  simulate a Zoom call. This is the "you can actually hear the meeting happening" endgame.
+- **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
+  Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline
+  running live on the audio. Can be done free (Whisper + Silero VAD + Piper TTS + Claude tokens +
+  Pipecat/LiveKit), but it's the biggest jump: it moves OFF Streamlit to WebRTC + a real frontend,
+  and free local compute trades latency for cost. Claude has no native realtime audio API, so this is
+  always an assembled STT→Claude→TTS pipeline, never a single speech-to-speech call. Lifelike voices
+  (ElevenLabs) and instant cloud latency (OpenAI/Gemini Realtime) are the paid upgrades if the
+  tokens-only budget is ever revisited — the feature itself is free, money buys speed + voice quality.
+- **V4 — actual meeting-platform integration (the real-world endgame, AFTER V3 voice works):** put the
+  assistant into live Zoom / Google Meet / Teams calls — a bot that joins the call (or a virtual audio
+  device) capturing real audio → live transcript → pipeline runs during/after the meeting. This is what
+  Otter.ai / Fireflies do. Only sensible once the real-time voice stack (V3) is solid, since it reuses it.
 
 ## Final UI vision (additive — each version builds on the last)
 
