@@ -97,6 +97,8 @@ ADVISOR_CLOSE = """The conversation so far:
 
 This is your final message as the advisor. Summarize what was discussed, confirm action items, and close the meeting warmly."""
 
+ADVISOR_OPENING = """You're beginning a meeting with a client. Greet them warmly and ask one open-ended question about what they'd like to focus on today. Keep it to 1-2 sentences."""
+
 
 def run_simulation(
     name: str,
@@ -163,3 +165,28 @@ def run_simulation(
     transcript_lines.append(f"Client: {closing.strip()}")
 
     return "\n\n".join(transcript_lines)
+
+
+# ── Interactive (human-in-the-loop) helpers ──────────────────────────
+# The human plays one side; the AI plays the other, one message at a time.
+
+def ai_opening_line(ai_role: str, persona: dict | None = None) -> str:
+    """First line spoken by the AI (used when the AI is the advisor and opens the meeting,
+    or the AI is the client and states why they're here)."""
+    if ai_role == "Client":
+        return call(prompt=CLIENT_OPENING.format(**persona), system=CLIENT_SYSTEM).strip()
+    return call(prompt=ADVISOR_OPENING, system=ADVISOR_SYSTEM).strip()
+
+
+def ai_reply(ai_role: str, transcript: str, persona: dict | None = None) -> str:
+    """Generate the AI's next message given the conversation so far.
+    persona is required only when the AI plays the client."""
+    if ai_role == "Client":
+        return call(
+            prompt=CLIENT_TURN.format(transcript=transcript, **persona),
+            system=CLIENT_SYSTEM,
+        ).strip()
+    return call(
+        prompt=ADVISOR_TURN.format(transcript=transcript),
+        system=ADVISOR_SYSTEM,
+    ).strip()
