@@ -1,4 +1,55 @@
+import random
 from src.llm import call
+
+# Coherent ready-made personas for the "random" button. Each one's situation,
+# concerns, age, risk, and personality fit together so the simulation stays realistic.
+# Risk/personality strings must match the UI selectbox options exactly.
+RANDOM_PERSONAS = [
+    {
+        "age": 38, "risk": "Aggressive", "personality": "Decisive and confident",
+        "situation": "Tech sales director, dual income with spouse, combined ~$450k/yr. Two young kids. Recently started maxing out the 401k.",
+        "concerns": "Wants to retire early around 50, unsure how to split between taxable and retirement accounts, curious about real estate as an investment.",
+    },
+    {
+        "age": 59, "risk": "Conservative", "personality": "Anxious and risk-averse",
+        "situation": "Manufacturing manager, single income, ~$1.1M in a 401k and a small pension. Wife handles the household.",
+        "concerns": "Nervous about retiring in 3 years, worried a market drop could wipe out the timeline, doesn't understand how to turn savings into income.",
+    },
+    {
+        "age": 47, "risk": "Moderate", "personality": "Analytical and detail-oriented",
+        "situation": "Owns a successful dental practice, ~$2M net worth mostly tied up in the business and real estate. Three kids, oldest starts college next year.",
+        "concerns": "Heavy concentration in the practice, wants to diversify, juggling college funding and a possible practice sale in 10 years.",
+    },
+    {
+        "age": 34, "risk": "Aggressive", "personality": "Cooperative and trusting",
+        "situation": "Software engineer at a mid-size company, single, ~$280k salary plus RSUs. First time working with an advisor.",
+        "concerns": "Sitting on a lot of company stock, not sure how aggressive to be, wants to eventually buy a home in a high cost-of-living area.",
+    },
+    {
+        "age": 62, "risk": "Moderate", "personality": "Skeptical and cautious",
+        "situation": "Recently widowed, inherited a ~$1.5M portfolio she didn't manage before. Former teacher with a modest pension.",
+        "concerns": "Overwhelmed managing money alone for the first time, distrustful after a bad experience with a previous advisor, wants simplicity and safety.",
+    },
+    {
+        "age": 51, "risk": "Moderate", "personality": "Decisive and confident",
+        "situation": "Corporate executive, recently divorced, restarting financially with ~$900k after the settlement. Two teenagers, shared custody.",
+        "concerns": "Rebuilding a retirement plan from a new baseline, wants to catch up aggressively but protect the kids' college money.",
+    },
+    {
+        "age": 29, "risk": "Aggressive", "personality": "Cooperative and trusting",
+        "situation": "Young physician finishing residency, ~$300k in student loans, salary jumping to ~$240k. Just married.",
+        "concerns": "Drowning in student debt, doesn't know whether to pay it down or invest, wants to start building wealth but feels behind.",
+    },
+    {
+        "age": 55, "risk": "Conservative", "personality": "Anxious and risk-averse",
+        "situation": "Sandwich generation — supporting aging parents and a kid still in college. ~$700k saved, single income of $160k.",
+        "concerns": "Stretched thin caring for parents and child at once, worried she'll never catch up for her own retirement, possible long-term-care costs for parents.",
+    },
+]
+
+
+def random_persona() -> dict:
+    return random.choice(RANDOM_PERSONAS)
 
 _TRANSCRIPT_RULES = """This is a transcript of spoken words only. Critical rules:
 - Output ONLY what the person says out loud. Nothing else.

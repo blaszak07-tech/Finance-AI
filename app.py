@@ -1,6 +1,6 @@
 import streamlit as st
 from src.chain import run_chain
-from src.simulator import run_simulation
+from src.simulator import run_simulation, random_persona
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -122,20 +122,40 @@ with tab_new:
             )
 
 # ── Simulate ─────────────────────────────────────────────────
+def _fill_random_persona():
+    p = random_persona()
+    st.session_state.sim_age = p["age"]
+    st.session_state.sim_risk = p["risk"]
+    st.session_state.sim_personality = p["personality"]
+    st.session_state.sim_situation = p["situation"]
+    st.session_state.sim_concerns = p["concerns"]
+
+
+RISK_OPTIONS = ["Conservative", "Moderate", "Aggressive"]
+PERSONALITY_OPTIONS = [
+    "Cooperative and trusting", "Skeptical and cautious", "Anxious and risk-averse",
+    "Analytical and detail-oriented", "Decisive and confident",
+]
+
 with tab_simulate:
     st.caption("Configure a client persona and generate a realistic meeting transcript automatically.")
+
+    # Initialize defaults once so the random button can overwrite them without warnings
+    st.session_state.setdefault("sim_age", 50)
+    st.session_state.setdefault("sim_risk", "Moderate")
+    st.session_state.setdefault("sim_personality", PERSONALITY_OPTIONS[0])
+    st.session_state.setdefault("sim_situation", "")
+    st.session_state.setdefault("sim_concerns", "")
+
+    st.button("🎲 Generate random persona", on_click=_fill_random_persona, key="sim_random")
 
     col1, col2 = st.columns(2)
     with col1:
         sim_name = st.text_input("Client name", value=display_name, key="sim_name")
-        sim_age = st.number_input("Age", min_value=25, max_value=85, value=50, key="sim_age")
-        sim_risk = st.selectbox("Risk tolerance", ["Conservative", "Moderate", "Aggressive"], index=1, key="sim_risk")
+        sim_age = st.number_input("Age", min_value=25, max_value=85, key="sim_age")
+        sim_risk = st.selectbox("Risk tolerance", RISK_OPTIONS, key="sim_risk")
     with col2:
-        sim_personality = st.selectbox(
-            "Personality",
-            ["Cooperative and trusting", "Skeptical and cautious", "Anxious and risk-averse", "Analytical and detail-oriented", "Decisive and confident"],
-            key="sim_personality",
-        )
+        sim_personality = st.selectbox("Personality", PERSONALITY_OPTIONS, key="sim_personality")
         sim_exchanges = st.slider("Conversation length (exchanges)", min_value=2, max_value=6, value=3, key="sim_exchanges")
 
     sim_situation = st.text_area(
