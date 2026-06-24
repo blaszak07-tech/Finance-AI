@@ -1,5 +1,6 @@
 import streamlit as st
 from src.chain import run_chain
+from src.simulator import run_simulation
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -75,7 +76,7 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_new, tab_history = st.tabs(["New Meeting", "History"])
+tab_new, tab_simulate, tab_history = st.tabs(["New Meeting", "Simulate", "History"])
 
 # ── New Meeting ──────────────────────────────────────────────
 with tab_new:
@@ -119,6 +120,87 @@ with tab_new:
                 file_name=f"{client_id}_followup.txt",
                 mime="text/plain",
             )
+
+# ── Simulate ─────────────────────────────────────────────────
+with tab_simulate:
+    st.caption("Configure a client persona and generate a realistic meeting transcript automatically.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        sim_name = st.text_input("Client name", value=display_name, key="sim_name")
+        sim_age = st.number_input("Age", min_value=25, max_value=85, value=50, key="sim_age")
+        sim_risk = st.selectbox("Risk tolerance", ["Conservative", "Moderate", "Aggressive"], index=1, key="sim_risk")
+    with col2:
+        sim_personality = st.selectbox(
+            "Personality",
+            ["Cooperative and trusting", "Skeptical and cautious", "Anxious and risk-averse", "Analytical and detail-oriented", "Decisive and confident"],
+            key="sim_personality",
+        )
+        sim_exchanges = st.slider("Conversation length (exchanges)", min_value=2, max_value=6, value=3, key="sim_exchanges")
+
+    sim_situation = st.text_area(
+        "Client situation",
+        placeholder="e.g. Software executive, recently sold startup equity, net worth around 4M. Wife is a doctor.",
+        height=80,
+        key="sim_situation",
+    )
+    sim_concerns = st.text_area(
+        "Key concerns to seed the conversation",
+        placeholder="e.g. Worried about taxes from the liquidity event, wants to retire by 58",
+        height=80,
+        key="sim_concerns",
+    )
+
+    sim_ready = all([sim_name.strip(), sim_situation.strip(), sim_concerns.strip()])
+    simulate_btn = st.button("Generate transcript", type="primary", disabled=not sim_ready, key="sim_btn")
+
+    if simulate_btn:
+        with st.spinner("Simulating conversation..."):
+            transcript = run_simulation(
+                name=sim_name.strip(),
+                age=int(sim_age),
+                situation=sim_situation.strip(),
+                risk_tolerance=sim_risk.lower(),
+                personality=sim_personality.lower(),
+                concerns=sim_concerns.strip(),
+                num_exchanges=int(sim_exchanges),
+            )
+
+        st.subheader("Generated transcript")
+        st.text(transcript)
+        st.divider()
+
+        if st.button("Run pipeline on this transcript", type="primary", key="sim_run_chain"):
+            with st.spinner("Running through Haiku..."):
+                result = run_chain(client_id, transcript)
+                save_meeting(client_id, {"notes": transcript, **result})
+
+            st.success("Done — meeting saved to history")
+
+            new_facts = result.get("new_profile_facts", {})
+            if new_facts:
+                with st.expander(f"Profile updated — {len(new_facts)} new fact(s) learned", expanded=True):
+                    for k, v in new_facts.items():
+                        st.markdown(f"**{k.replace('_', ' ').title()}:** {v}")
+
+            s_summary, s_actions, s_flags, s_email = st.tabs(
+                ["Summary", "Action Items", "Planning Flags", "Follow-up Email"]
+            )
+            with s_summary:
+                md(result["summary"])
+            with s_actions:
+                md(result["action_items"])
+            with s_flags:
+                md(result["flags"])
+            with s_email:
+                md(result["email"])
+                st.divider()
+                st.download_button(
+                    "Download email as .txt",
+                    data=result["email"],
+                    file_name=f"{client_id}_simulated_followup.txt",
+                    mime="text/plain",
+                )
 
 # ── History ──────────────────────────────────────────────────
 with tab_history:

@@ -54,7 +54,8 @@ just shipping a working app. Build for depth, explain the "why," don't just hand
 - ✅ `app.py` — Streamlit UI (client picker, new meeting, history view, rename/delete)
 - ✅ Profile auto-extraction — facts extracted from notes and persisted after every meeting
 - ✅ Meeting history view — all past meetings per client, newest first, full output in tabs
-- **V1 is complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
+- **V1 complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
+- ✅ V1.5 batch simulator — persona config → generated transcript → auto-runs V1 pipeline
 - Local env: Python 3.11, pip3, Anthropic key in `.env`. Start UI: `PATH="$PATH:/Users/shaunblaszak/Library/Python/3.11/bin" streamlit run app.py`
 
 ## Build order (each step independently testable)
