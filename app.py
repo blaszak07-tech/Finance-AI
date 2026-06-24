@@ -4,6 +4,7 @@ from src.simulator import (
     run_simulation, simulate_conversation, random_persona, ai_opening_line, ai_reply,
 )
 from src.voice import speak, transcribe, synthesize_conversation
+from src.search import build_index, search_index, answer_from_context
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -84,8 +85,8 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_new, tab_simulate, tab_live, tab_voice, tab_history = st.tabs(
-    ["New Meeting", "Simulate", "Live Meeting", "Voice", "History"]
+tab_new, tab_simulate, tab_live, tab_voice, tab_ask, tab_history = st.tabs(
+    ["New Meeting", "Simulate", "Live Meeting", "Voice", "Ask", "History"]
 )
 
 # ── New Meeting ──────────────────────────────────────────────
@@ -555,6 +556,42 @@ with tab_voice:
                 with ve2: md(result["action_items"])
                 with ve3: md(result["flags"])
                 with ve4: md(result["email"])
+
+
+# ── Ask (semantic search + RAG over history) ─────────────────
+@st.cache_data(show_spinner=False)
+def _cached_index(client_id: str, n_meetings: int):
+    # Cached by (client, #meetings) so we only re-embed when a meeting is added
+    return build_index(client_id)
+
+
+with tab_ask:
+    st.caption("Ask anything about this client's history in plain language. Semantic search over past meetings (local embeddings) feeds the relevant moments to Claude.")
+    meetings = load_meetings(client_id)
+
+    if not meetings:
+        st.info("No meetings on file yet. Run, simulate, or record one first.")
+    else:
+        question = st.text_input(
+            "Your question",
+            placeholder="e.g. What are this client's concerns about retirement? · When did college funding come up?",
+            key="ask_q",
+        )
+        if st.button("Ask", type="primary", disabled=not question.strip(), key="ask_btn"):
+            with st.spinner("Searching meeting history…"):
+                chunks, embs = _cached_index(client_id, len(meetings))
+                hits = search_index(chunks, embs, question.strip(), top_k=5)
+            with st.spinner("Thinking…"):
+                answer = answer_from_context(question.strip(), hits)
+
+            st.markdown("### Answer")
+            md(answer)
+
+            with st.expander(f"Sources — {len(hits)} passage(s) the answer drew from"):
+                for h in hits:
+                    st.markdown(f"`{h['timestamp']}` · similarity {h['score']:.2f}")
+                    md(h["text"])
+                    st.divider()
 
 
 # ── History ──────────────────────────────────────────────────

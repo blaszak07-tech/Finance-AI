@@ -94,9 +94,12 @@ Finance AI/
 - **V1** — the core pipeline above. ← we are here
 - **V1.5** — conversation simulator. DONE: ✅ batch · ✅ human-in-the-loop chat · ✅ push-to-talk voice
   (two-AI voiced conversation with timestamps + "I speak" mode). All free/local (macOS `say` + faster-whisper).
-- **V2+ (separate, deliberate stages, no required order):** RAG over past meetings · vector DB
-  (semantic search of history) · a real evaluation system (score accuracy/consistency/hallucination
-  across many transcripts) · agents (AI picks which steps to run) · multi-agent · MCP tool connections.
+- **V2+ (separate, deliberate stages, no required order):**
+  - ✅ **RAG / semantic search over history** ("Ask" tab) — local free embeddings (fastembed/onnxruntime),
+    cosine similarity by hand in numpy, retrieved passages → Claude answers grounded with date citations.
+  - ⬜ eval system (score accuracy/consistency/hallucination across many transcripts) — highest learning value
+  - ⬜ agents (AI picks which steps to run) · multi-agent · MCP tool connections
+  - ⬜ structured financial extraction · stronger WM-framework planning-flags prompt
 - **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
   Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline
   running live on the audio. Can be done free (Whisper + Silero VAD + Piper TTS + Claude tokens +
@@ -109,6 +112,12 @@ Finance AI/
   assistant into live Zoom / Google Meet / Teams calls — a bot that joins the call (or a virtual audio
   device) capturing real audio → live transcript → pipeline runs during/after the meeting. This is what
   Otter.ai / Fireflies do. Only sensible once the real-time voice stack (V3) is solid, since it reuses it.
+
+**Delivery sequencing of the two cross-cutting finishing steps (apply LAST, in this order):**
+1. **Polish + front-end design pass** (using the frontend-design skill) — comes only after the
+   intelligence features exist; design around real, finished functionality, not placeholders.
+2. **Resume packaging** (README + screenshots + architecture diagram + free public deploy) — the very
+   last step, once everything else looks and works the way it should.
 
 ## Final UI vision (additive — each version builds on the last)
 
