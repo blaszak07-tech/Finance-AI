@@ -5,6 +5,7 @@ from src.simulator import (
 )
 from src.voice import speak, transcribe, synthesize_conversation
 from src.search import build_index, search_index, answer_from_context
+from src.agents import run_analysis
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -85,8 +86,8 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_new, tab_simulate, tab_live, tab_voice, tab_ask, tab_history = st.tabs(
-    ["New Meeting", "Simulate", "Live Meeting", "Voice", "Ask", "History"]
+tab_new, tab_simulate, tab_live, tab_voice, tab_ask, tab_agents, tab_history = st.tabs(
+    ["New Meeting", "Simulate", "Live Meeting", "Voice", "Ask", "Agents", "History"]
 )
 
 # ── New Meeting ──────────────────────────────────────────────
@@ -592,6 +593,44 @@ with tab_ask:
                     st.markdown(f"`{h['timestamp']}` · similarity {h['score']:.2f}")
                     md(h["text"])
                     st.divider()
+
+
+# ── Agents (orchestrator + specialist analysts) ──────────────
+with tab_agents:
+    st.caption("An orchestrator agent reads the meeting and routes it to only the relevant specialist analysts — Retirement & Income, Tax, Risk & Portfolio. You see which it picked and why.")
+    ag_meetings = load_meetings(client_id)
+
+    st.session_state.setdefault("ag_notes", "")
+    if ag_meetings and ag_meetings[0].get("notes"):
+        if st.button("Load last meeting's notes", key="ag_load"):
+            st.session_state.ag_notes = ag_meetings[0]["notes"]
+
+    ag_notes = st.text_area(
+        "Meeting notes to analyze",
+        height=200,
+        placeholder="Paste meeting notes, or load the last meeting above.",
+        key="ag_notes",
+    )
+
+    if st.button("Run analyst team", type="primary", disabled=not ag_notes.strip(), key="ag_run"):
+        with st.spinner("Orchestrator routing → specialists analyzing…"):
+            st.session_state.ag_result = run_analysis(client_id, ag_notes.strip())
+
+    res = st.session_state.get("ag_result")
+    if res:
+        st.divider()
+        st.markdown("#### Orchestrator decision")
+        engaged = [res["available"][k] for k in res["selected"]]
+        skipped = [v for k, v in res["available"].items() if k not in res["selected"]]
+        st.markdown("**Engaged:** " + " · ".join(f"`{e}`" for e in engaged))
+        if skipped:
+            st.caption("Skipped: " + ", ".join(skipped))
+        md(f"_Reasoning:_ {res['reasoning']}")
+
+        st.divider()
+        for f in res["findings"]:
+            st.markdown(f"#### {f['label']}")
+            md(f["text"])
 
 
 # ── History ──────────────────────────────────────────────────

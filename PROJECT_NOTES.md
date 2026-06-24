@@ -98,7 +98,9 @@ Finance AI/
   - ✅ **RAG / semantic search over history** ("Ask" tab) — local free embeddings (fastembed/onnxruntime),
     cosine similarity by hand in numpy, retrieved passages → Claude answers grounded with date citations.
   - ⬜ eval system (score accuracy/consistency/hallucination across many transcripts) — highest learning value
-  - ⬜ agents (AI picks which steps to run) · multi-agent · MCP tool connections
+  - ✅ **agents (orchestrator-workers)** ("Agents" tab) — orchestrator routes a meeting to the relevant
+    specialist analysts (Retirement & Income · Tax · Risk & Portfolio); only the relevant ones run. See D-006.
+  - ⬜ full autonomous tool-loop agent (acts→observes→repeats) · multi-agent · MCP tool connections
   - ⬜ structured financial extraction · stronger WM-framework planning-flags prompt
 - **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
   Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline

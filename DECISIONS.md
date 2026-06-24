@@ -46,3 +46,16 @@ on Shaun's explicit go — pushing publishes it.
 **Why:** Local git is free and records how the project evolved (a resume-relevant skill). CLAUDE.md makes
 session re-orientation automatic instead of relying on Shaun to remember to point Claude at the notes.
 A public GitHub repo is a concrete portfolio artifact for finance interviews.
+
+### D-006 — Agents = orchestrator-workers, not a tool-loop (2026-06-24)
+**Decided:** The first "agents" stage is an **orchestrator + 3 specialist analysts** (Retirement & Income,
+Tax, Risk & Portfolio). One orchestrator call reads the meeting and returns JSON picking which specialists
+are relevant; only those run, each as its own focused Claude call. Three specialists = the real pillars of
+WM planning; deliberately NOT more. Lives in its own "Agents" tab showing the routing decision + each
+specialist's findings. Did NOT build a full autonomous tool-using agent loop (model acts→observes→repeats);
+that's a later, separate stage.
+**Why:** The only place in the app with a genuine control-flow *decision* is which analysis to run — that's
+where an agent earns its keep. Orchestrator-workers is the honest, minimal pattern that demonstrates "the
+model decides what runs" without overbuilding. Routing is visible in the UI so it's a real teaching/demo
+artifact. Tool-loop agents add real complexity (stopping conditions, tool plumbing) and deserve their own
+stage rather than being rushed in here. Keeping to 3 specialists honors "a couple is enough — don't build a zoo."
