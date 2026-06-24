@@ -6,7 +6,7 @@ from src.voice import speak, transcribe, synthesize_conversation
 from src.search import build_index, search_index, answer_from_context
 from src.agents import run_analysis
 from src.tool_agent import run_agent
-from src.eval import run_eval, SAMPLE_TRANSCRIPTS
+from src.eval import run_eval, score_groundedness, SAMPLE_TRANSCRIPTS
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -16,6 +16,16 @@ def accuracy_caption(result_or_meeting: dict) -> None:
     acc = (result_or_meeting or {}).get("accuracy")
     if acc and acc.get("accuracy") is not None:
         st.caption(f"📊 Summary accuracy (LLM-as-judge): **{acc['accuracy']}/100**")
+
+
+def groundedness_caption(score: dict) -> None:
+    """Show a groundedness score for a Q&A answer, with any flagged unsupported claims."""
+    if score and score.get("groundedness") is not None:
+        st.caption(f"📊 Groundedness (LLM-as-judge): **{score['groundedness']}/100** — is the answer supported by the evidence it used")
+        if score.get("unsupported_claims"):
+            with st.expander(f"⚠️ {len(score['unsupported_claims'])} unsupported claim(s) the judge flagged"):
+                for c in score["unsupported_claims"]:
+                    st.markdown(f"- {c}")
 
 
 def md(text: str) -> None:
@@ -371,9 +381,13 @@ with tab_ask:
                 hits = search_index(chunks, embs, question.strip(), top_k=5)
             with st.spinner("Thinking…"):
                 answer = answer_from_context(question.strip(), hits)
+            with st.spinner("Scoring groundedness…"):
+                evidence = "\n\n".join(f"[{h['timestamp']}] {h['text']}" for h in hits)
+                ground = score_groundedness(question.strip(), evidence, answer)
 
             st.markdown("### Answer")
             md(answer)
+            groundedness_caption(ground)
 
             with st.expander(f"Sources — {len(hits)} passage(s) the answer drew from"):
                 for h in hits:
@@ -441,7 +455,11 @@ with tab_autoagent:
     if st.button("Run agent", type="primary", disabled=not aa_q.strip(), key="aa_run"):
         with st.spinner("Agent working — calling tools, observing, deciding…"):
             index = _cached_index(client_id, len(aa_meetings)) if aa_meetings else ([], None)
-            st.session_state.aa_result = run_agent(client_id, aa_q.strip(), index=index)
+            res = run_agent(client_id, aa_q.strip(), index=index)
+        with st.spinner("Scoring groundedness…"):
+            evidence = "\n\n".join(s["result"] for s in res["steps"] if s["type"] == "action")
+            res["groundedness"] = score_groundedness(aa_q.strip(), evidence, res["answer"])
+        st.session_state.aa_result = res
 
     aa_res = st.session_state.get("aa_result")
     if aa_res:
@@ -458,6 +476,7 @@ with tab_autoagent:
         st.divider()
         st.markdown("#### Final answer")
         md(aa_res["answer"])
+        groundedness_caption(aa_res.get("groundedness"))
 
 
 # ── Eval (educational: how we measure quality) ───────────────

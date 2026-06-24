@@ -14,6 +14,19 @@ import json
 from src.llm import call
 from src.prompts import SUMMARY_SYSTEM, SUMMARY_USER
 
+
+def _extract_json(raw: str) -> dict | None:
+    """Robustly pull a JSON object out of an LLM response (handles code fences / stray prose)."""
+    if not isinstance(raw, str):
+        return None
+    start, end = raw.find("{"), raw.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return None
+    try:
+        return json.loads(raw[start:end + 1])
+    except json.JSONDecodeError:
+        return None
+
 JUDGE_SYSTEM = """You are a strict evaluator of AI-generated wealth-management meeting summaries.
 Given the ORIGINAL transcript and a GENERATED summary, judge how accurate and faithful the summary is.
 Return ONLY a JSON object (no markdown, no code fences):
@@ -36,16 +49,55 @@ Score the summary's accuracy against the transcript. Return JSON only."""
 def score_accuracy(transcript: str, summary: str) -> dict:
     """LLM-as-judge accuracy score. Returns {accuracy, hallucinations, omissions, reasoning}."""
     raw = call(prompt=JUDGE_USER.format(transcript=transcript, summary=summary), system=JUDGE_SYSTEM)
-    try:
-        cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        data = json.loads(cleaned)
-    except (json.JSONDecodeError, AttributeError):
+    data = _extract_json(raw)
+    if data is None:
         return {"accuracy": None, "hallucinations": [], "omissions": [], "reasoning": "(could not parse judge output)"}
-    # normalize
     return {
         "accuracy": data.get("accuracy"),
         "hallucinations": data.get("hallucinations", []) or [],
         "omissions": data.get("omissions", []) or [],
+        "reasoning": data.get("reasoning", ""),
+    }
+
+
+GROUND_JUDGE_SYSTEM = """You evaluate whether an AI assistant's answer is GROUNDED in the evidence it was
+given. You receive the user's QUESTION, the EVIDENCE excerpts the assistant was shown, and the assistant's
+ANSWER. Judge how well the answer's factual claims are supported by the evidence.
+Return ONLY a JSON object (no markdown, no code fences):
+{"groundedness": <integer 0-100>, "unsupported_claims": ["..."], "reasoning": "1-2 sentences"}
+Rules:
+- groundedness 100 = every client-specific factual claim in the answer is supported by the evidence, nothing invented.
+- unsupported_claims = specific claims about the client NOT backed by the evidence (or contradicting it).
+- General financial reasoning, advice, and recommendations that follow from the evidence are FINE — do not
+  penalize them. Penalize ONLY invented client-specific facts."""
+
+GROUND_JUDGE_USER = """QUESTION:
+{question}
+
+EVIDENCE THE ASSISTANT WAS SHOWN:
+{evidence}
+
+ASSISTANT'S ANSWER:
+{answer}
+
+Score how grounded the answer is in the evidence. Return JSON only."""
+
+
+def score_groundedness(question: str, evidence: str, answer: str) -> dict:
+    """LLM-as-judge groundedness/faithfulness for a question-answering response (Ask / Auto-Agent).
+    Returns {groundedness, unsupported_claims, reasoning}."""
+    if not evidence.strip():
+        return {"groundedness": None, "unsupported_claims": [], "reasoning": "(no evidence to judge against)"}
+    raw = call(
+        prompt=GROUND_JUDGE_USER.format(question=question, evidence=evidence, answer=answer),
+        system=GROUND_JUDGE_SYSTEM,
+    )
+    data = _extract_json(raw)
+    if data is None:
+        return {"groundedness": None, "unsupported_claims": [], "reasoning": "(could not parse judge output)"}
+    return {
+        "groundedness": data.get("groundedness"),
+        "unsupported_claims": data.get("unsupported_claims", []) or [],
         "reasoning": data.get("reasoning", ""),
     }
 
