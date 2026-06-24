@@ -104,8 +104,14 @@ Finance AI/
     specialist analysts (Retirement & Income · Tax · Risk & Portfolio); only the relevant ones run. Each
     specialist also retrieves domain-relevant passages from the client's PAST meetings (RAG) and cites dates.
     Reuses the Ask tab's cached embedding index. See D-006.
-  - ⬜ full autonomous tool-loop agent (acts→observes→repeats) · multi-agent · MCP tool connections
-  - ⬜ structured financial extraction · stronger WM-framework planning-flags prompt
+  - ✅ **full tool-loop agent** ("Auto-Agent" tab, `src/tool_agent.py`) — autonomous: given tools
+    (search_history, get_profile, run_specialist), it loops act→observe→decide until it can answer.
+    Uses Claude tool use. UI shows the full trace (thoughts + tool calls + results). See D-007.
+  - ✅ **eval system** (`src/eval.py`) — LLM-as-judge accuracy scoring. PRODUCTION: `score_accuracy`
+    is wired into `run_chain`, so every saved meeting carries a 0-100 accuracy score (shown under each
+    summary in New Meeting / Voice / History). EDUCATIONAL: "Eval" tab shows the full breakdown
+    (summary → score → hallucinations/omissions/reasoning, multi-run consistency). See D-007.
+  - ⬜ multi-agent · MCP tool connections · structured financial extraction · stronger WM flags prompt
 - **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
   Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline
   running live on the audio. Can be done free (Whisper + Silero VAD + Piper TTS + Claude tokens +

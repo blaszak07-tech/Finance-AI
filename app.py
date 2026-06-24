@@ -1,11 +1,21 @@
+import json
 import streamlit as st
 from src.chain import run_chain
 from src.simulator import simulate_conversation, random_persona, ai_opening_line, ai_reply
 from src.voice import speak, transcribe, synthesize_conversation
 from src.search import build_index, search_index, answer_from_context
 from src.agents import run_analysis
+from src.tool_agent import run_agent
+from src.eval import run_eval, SAMPLE_TRANSCRIPTS
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
+
+
+def accuracy_caption(result_or_meeting: dict) -> None:
+    """Show the stored accuracy score, if present."""
+    acc = (result_or_meeting or {}).get("accuracy")
+    if acc and acc.get("accuracy") is not None:
+        st.caption(f"📊 Summary accuracy (LLM-as-judge): **{acc['accuracy']}/100**")
 
 
 def md(text: str) -> None:
@@ -90,8 +100,8 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_new, tab_voice, tab_ask, tab_agents, tab_history = st.tabs(
-    ["New Meeting", "Voice", "Ask", "Agents", "History"]
+tab_new, tab_voice, tab_ask, tab_agents, tab_autoagent, tab_eval, tab_history = st.tabs(
+    ["New Meeting", "Voice", "Ask", "Agents", "Auto-Agent", "Eval", "History"]
 )
 
 # ── New Meeting ──────────────────────────────────────────────
@@ -123,6 +133,7 @@ with tab_new:
         )
         with r_summary:
             md(result["summary"])
+            accuracy_caption(result)
         with r_actions:
             md(result["action_items"])
         with r_flags:
@@ -148,7 +159,7 @@ def _fill_random_persona_voc():
     st.session_state.voc_concerns = p["concerns"]
 
 
-_VOICE_KEYS = ["v_active", "v_messages", "v_human_role", "v_ai_role", "v_persona", "v_client", "v_last_audio", "v_summary"]
+_VOICE_KEYS = ["v_active", "v_messages", "v_human_role", "v_ai_role", "v_persona", "v_client", "v_last_audio", "v_summary", "v_accuracy"]
 
 
 def _render_timed_transcript(timed: list[dict]):
@@ -201,6 +212,7 @@ with tab_voice:
             st.session_state.voc_audio = audio_bytes
             st.session_state.voc_timed = timed
             st.session_state.voc_summary = result["summary"]
+            st.session_state.voc_accuracy = result.get("accuracy")
 
         if st.session_state.get("voc_audio"):
             st.success("Meeting saved to history")
@@ -210,6 +222,7 @@ with tab_voice:
             st.divider()
             st.markdown("#### Meeting summary")
             md(st.session_state.voc_summary)
+            accuracy_caption({"accuracy": st.session_state.get("voc_accuracy")})
             st.caption("Action items, planning flags, and the follow-up email are under the History tab.")
 
     # ── I speak: push-to-talk, you play one side, AI plays the other ──
@@ -322,12 +335,14 @@ with tab_voice:
                     result = run_chain(client_id, transcript)
                     save_meeting(client_id, {"notes": transcript, **result})
                 st.session_state.v_summary = result["summary"]
+                st.session_state.v_accuracy = result.get("accuracy")
 
             if st.session_state.get("v_summary"):
                 st.success("Meeting saved to history")
                 st.divider()
                 st.markdown("#### Meeting summary")
                 md(st.session_state.v_summary)
+                accuracy_caption({"accuracy": st.session_state.get("v_accuracy")})
                 st.caption("Action items, planning flags, and the follow-up email are under the History tab.")
 
 
@@ -413,6 +428,95 @@ with tab_agents:
                         st.divider()
 
 
+# ── Auto-Agent (full tool-use loop) ──────────────────────────
+with tab_autoagent:
+    st.caption("An autonomous agent. Unlike the Agents tab (one fixed routing step), this one runs in a loop: it's given tools (search history, get profile, consult specialists), decides which to call, sees the result, and decides its next move — until it can answer. You watch it work.")
+    aa_meetings = load_meetings(client_id)
+
+    aa_q = st.text_input(
+        "Ask the agent to investigate something about this client",
+        placeholder="e.g. Should this client do a Roth conversion this year, and is their portfolio positioned right?",
+        key="aa_q",
+    )
+    if st.button("Run agent", type="primary", disabled=not aa_q.strip(), key="aa_run"):
+        with st.spinner("Agent working — calling tools, observing, deciding…"):
+            index = _cached_index(client_id, len(aa_meetings)) if aa_meetings else ([], None)
+            st.session_state.aa_result = run_agent(client_id, aa_q.strip(), index=index)
+
+    aa_res = st.session_state.get("aa_result")
+    if aa_res:
+        st.divider()
+        st.markdown("#### Agent trace")
+        st.caption(f"{sum(1 for s in aa_res['steps'] if s['type'] == 'action')} tool call(s) — the agent chose these itself")
+        for s in aa_res["steps"]:
+            if s["type"] == "thought":
+                st.markdown(f"🤔 {s['text']}")
+            else:
+                st.markdown(f"🔧 **{s['tool']}**  `{json.dumps(s['input'])}`")
+                with st.expander("tool result"):
+                    md(s["result"])
+        st.divider()
+        st.markdown("#### Final answer")
+        md(aa_res["answer"])
+
+
+# ── Eval (educational: how we measure quality) ───────────────
+with tab_eval:
+    st.caption("How do we know the AI's output is trustworthy? LLM-as-judge: a separate Claude call grades a generated summary against the original transcript for faithfulness. (This same scoring runs automatically on every saved meeting — see the accuracy score under each summary.)")
+
+    eval_meetings = load_meetings(client_id)
+    source_options = list(SAMPLE_TRANSCRIPTS.keys())
+    if eval_meetings and eval_meetings[0].get("notes"):
+        source_options = ["This client's last meeting"] + source_options
+
+    source = st.selectbox("Transcript to evaluate", source_options, key="eval_source")
+    runs = st.slider("Runs (more = shows consistency / non-determinism)", 1, 3, 1, key="eval_runs")
+
+    if st.button("Run evaluation", type="primary", key="eval_run"):
+        if source == "This client's last meeting":
+            transcript = eval_meetings[0]["notes"]
+        else:
+            transcript = SAMPLE_TRANSCRIPTS[source]
+        with st.spinner("Generating summary, then judging it…"):
+            st.session_state.eval_result = run_eval(transcript, runs=runs)
+
+    ev = st.session_state.get("eval_result")
+    if ev:
+        st.divider()
+        with st.expander("Transcript that was evaluated"):
+            st.text(ev["transcript"])
+
+        scores = [r["score"]["accuracy"] for r in ev["results"] if r["score"]["accuracy"] is not None]
+        if len(scores) > 1:
+            st.markdown(f"**Accuracy across {len(scores)} runs:** {scores}  ·  avg **{sum(scores)/len(scores):.0f}/100**  ·  spread {min(scores)}–{max(scores)}")
+            st.caption("Same input, different scores = the non-determinism eval exists to catch.")
+
+        for i, r in enumerate(ev["results"], 1):
+            sc = r["score"]
+            st.markdown(f"#### Run {i}" if len(ev["results"]) > 1 else "#### Result")
+            if sc["accuracy"] is not None:
+                st.metric("Accuracy (LLM-as-judge)", f"{sc['accuracy']}/100")
+            with st.expander("Generated summary"):
+                md(r["summary"])
+            cols = st.columns(2)
+            with cols[0]:
+                st.markdown("**Hallucinations**")
+                if sc["hallucinations"]:
+                    for h in sc["hallucinations"]:
+                        st.markdown(f"- {h}")
+                else:
+                    st.caption("None found")
+            with cols[1]:
+                st.markdown("**Omissions**")
+                if sc["omissions"]:
+                    for o in sc["omissions"]:
+                        st.markdown(f"- {o}")
+                else:
+                    st.caption("None found")
+            md(f"_Judge reasoning:_ {sc['reasoning']}")
+            st.divider()
+
+
 # ── History ──────────────────────────────────────────────────
 with tab_history:
     meetings = load_meetings(client_id)
@@ -429,6 +533,7 @@ with tab_history:
                 )
                 with h_summary:
                     md(m.get("summary", "—"))
+                    accuracy_caption(m)
                 with h_actions:
                     md(m.get("action_items", "—"))
                 with h_flags:

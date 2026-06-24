@@ -59,3 +59,17 @@ where an agent earns its keep. Orchestrator-workers is the honest, minimal patte
 model decides what runs" without overbuilding. Routing is visible in the UI so it's a real teaching/demo
 artifact. Tool-loop agents add real complexity (stopping conditions, tool plumbing) and deserve their own
 stage rather than being rushed in here. Keeping to 3 specialists honors "a couple is enough — don't build a zoo."
+
+### D-007 — Tool-loop agent + eval system (2026-06-24)
+**Decided:** (1) Added a full autonomous **tool-loop agent** (`src/tool_agent.py`, "Auto-Agent" tab) using
+Claude tool use. Tools reuse existing capabilities (search_history, get_profile, run_specialist). It loops
+act→observe→decide up to `max_steps` (6), then forces a final answer. UI shows the full trace. (2) Added an
+**eval system** (`src/eval.py`) on the LLM-as-judge pattern. Two faces: a PRODUCTION `score_accuracy` wired
+into `run_chain` (every saved meeting stores a 0-100 summary-accuracy score, shown under the summary), and an
+EDUCATIONAL "Eval" tab showing the full breakdown (hallucinations/omissions/reasoning + multi-run consistency).
+Default model stays Haiku for both, per budget.
+**Why:** Tool-loop is the autonomous rung above D-006 — built second, deliberately, once orchestrator-workers
+was solid. Eval is the honest answer to "is the output actually good?": LLM-as-judge turns "looks fine" into a
+tracked number, and finally lets us answer empirically whether Haiku is enough or a step needs Sonnet. Shaun
+wanted the accuracy score baked into the finished product (not just a demo), so it lives in the pipeline; the
+tab is the teaching view. Adds one judge call per meeting — acceptable on the token-only budget.

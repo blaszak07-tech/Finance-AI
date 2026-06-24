@@ -1,6 +1,7 @@
 import json
 from src.llm import call
 from src.profile import profile_summary, update_profile
+from src.eval import score_accuracy
 from src.prompts import (
     SUMMARY_SYSTEM, SUMMARY_USER,
     ACTION_ITEMS_SYSTEM, ACTION_ITEMS_USER,
@@ -48,10 +49,14 @@ def run_chain(client_id: str, notes: str) -> dict:
     if new_facts:
         update_profile(client_id, new_facts)
 
+    # Production eval: score the summary's faithfulness to the notes (LLM-as-judge)
+    accuracy = score_accuracy(notes, summary)
+
     return {
         "summary": summary,
         "action_items": action_items,
         "flags": flags,
         "email": email,
         "new_profile_facts": new_facts,
+        "accuracy": accuracy,
     }
