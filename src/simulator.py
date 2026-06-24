@@ -100,7 +100,11 @@ This is your final message as the advisor. Summarize what was discussed, confirm
 ADVISOR_OPENING = """You're beginning a meeting with a client. Greet them warmly and ask one open-ended question about what they'd like to focus on today. Keep it to 1-2 sentences."""
 
 
-def run_simulation(
+def _join(turns: list[dict]) -> str:
+    return "\n\n".join(f"{t['role']}: {t['text']}" for t in turns)
+
+
+def simulate_conversation(
     name: str,
     age: int,
     situation: str,
@@ -108,12 +112,13 @@ def run_simulation(
     personality: str,
     concerns: str,
     num_exchanges: int = 4,
-) -> str:
+) -> list[dict]:
     """
-    Run a simulated advisor-client conversation and return the full transcript as plain text.
+    Run a simulated advisor-client conversation. Returns structured turns:
+    [{"role": "Client"|"Advisor", "text": ...}, ...]
     num_exchanges = number of back-and-forth pairs (client + advisor = 1 exchange).
     """
-    transcript_lines = []
+    turns: list[dict] = []
 
     # Client opens
     opening = call(
@@ -123,48 +128,39 @@ def run_simulation(
         ),
         system=CLIENT_SYSTEM,
     )
-    transcript_lines.append(f"Client: {opening.strip()}")
+    turns.append({"role": "Client", "text": opening.strip()})
 
     # Alternating turns
     for i in range(num_exchanges):
-        transcript_so_far = "\n\n".join(transcript_lines)
         is_last = (i == num_exchanges - 1)
 
-        # Advisor turn
-        if is_last:
-            advisor_msg = call(
-                prompt=ADVISOR_CLOSE.format(transcript=transcript_so_far),
-                system=ADVISOR_SYSTEM,
-            )
-        else:
-            advisor_msg = call(
-                prompt=ADVISOR_TURN.format(transcript=transcript_so_far),
-                system=ADVISOR_SYSTEM,
-            )
-        transcript_lines.append(f"Advisor: {advisor_msg.strip()}")
+        prompt = ADVISOR_CLOSE if is_last else ADVISOR_TURN
+        advisor_msg = call(prompt=prompt.format(transcript=_join(turns)), system=ADVISOR_SYSTEM)
+        turns.append({"role": "Advisor", "text": advisor_msg.strip()})
 
         if not is_last:
-            transcript_so_far = "\n\n".join(transcript_lines)
             client_msg = call(
                 prompt=CLIENT_TURN.format(
-                    transcript=transcript_so_far, name=name, age=age,
+                    transcript=_join(turns), name=name, age=age,
                     situation=situation, personality=personality, concerns=concerns,
                 ),
                 system=CLIENT_SYSTEM,
             )
-            transcript_lines.append(f"Client: {client_msg.strip()}")
+            turns.append({"role": "Client", "text": client_msg.strip()})
 
     # Client closing line
-    transcript_so_far = "\n\n".join(transcript_lines)
     closing = call(
-        prompt=CLIENT_CLOSE.format(
-            transcript=transcript_so_far, name=name, age=age, concerns=concerns,
-        ),
+        prompt=CLIENT_CLOSE.format(transcript=_join(turns), name=name, age=age, concerns=concerns),
         system=CLIENT_SYSTEM,
     )
-    transcript_lines.append(f"Client: {closing.strip()}")
+    turns.append({"role": "Client", "text": closing.strip()})
 
-    return "\n\n".join(transcript_lines)
+    return turns
+
+
+def run_simulation(*args, **kwargs) -> str:
+    """Batch simulation as a single plain-text transcript (thin wrapper)."""
+    return _join(simulate_conversation(*args, **kwargs))
 
 
 # ── Interactive (human-in-the-loop) helpers ──────────────────────────

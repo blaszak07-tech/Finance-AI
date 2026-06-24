@@ -1,5 +1,7 @@
 # V1 dependencies.  Install with:  pip install -r requirements.txt
 anthropic         # official Claude API client
 python-dotenv     # loads .env file into os.environ
-streamlit     # simple local web UI
+streamlit         # simple local web UI
+faster-whisper    # local speech-to-text for the Voice tab (free, runs on CPU)
+# Voice TTS uses the built-in macOS `say` command — no Python package needed.
 # (Versions left unpinned for now; once installed we can pin them here for reproducibility.)

@@ -1,6 +1,9 @@
 import streamlit as st
 from src.chain import run_chain
-from src.simulator import run_simulation, random_persona, ai_opening_line, ai_reply
+from src.simulator import (
+    run_simulation, simulate_conversation, random_persona, ai_opening_line, ai_reply,
+)
+from src.voice import speak, transcribe, synthesize_conversation
 from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
 from src.profile import profile_summary
 
@@ -81,8 +84,8 @@ if not client_id:
 
 st.subheader(display_name)
 
-tab_new, tab_simulate, tab_live, tab_history = st.tabs(
-    ["New Meeting", "Simulate", "Live Meeting", "History"]
+tab_new, tab_simulate, tab_live, tab_voice, tab_history = st.tabs(
+    ["New Meeting", "Simulate", "Live Meeting", "Voice", "History"]
 )
 
 # ── New Meeting ──────────────────────────────────────────────
@@ -358,6 +361,200 @@ with tab_live:
                 md(result["flags"])
             with l_email:
                 md(result["email"])
+
+
+# ── Voice ────────────────────────────────────────────────────
+def _fill_random_persona_voc():
+    p = random_persona()
+    st.session_state.voc_age = p["age"]
+    st.session_state.voc_risk = p["risk"]
+    st.session_state.voc_personality = p["personality"]
+    st.session_state.voc_situation = p["situation"]
+    st.session_state.voc_concerns = p["concerns"]
+
+
+_VOICE_KEYS = ["v_active", "v_messages", "v_human_role", "v_ai_role", "v_persona", "v_client", "v_last_audio"]
+
+
+def _render_timed_transcript(timed: list[dict]):
+    for t in timed:
+        st.markdown(f"`{t['timestamp']}`  **{t['role']}**")
+        md(t["text"])
+
+
+with tab_voice:
+    st.caption("Voice mode (push-to-talk). Uses free system voices for now — Daniel (advisor) & Samantha (client). Swappable for lifelike voices later.")
+    mode = st.radio("Mode", ["Two AI voices", "I speak (one side)"], horizontal=True, key="voice_top_mode")
+
+    # ── Two AI voices: auto-generate a voiced conversation with timestamps ──
+    if mode == "Two AI voices":
+        st.session_state.setdefault("voc_age", 50)
+        st.session_state.setdefault("voc_risk", "Moderate")
+        st.session_state.setdefault("voc_personality", PERSONALITY_OPTIONS[0])
+        st.session_state.setdefault("voc_situation", "")
+        st.session_state.setdefault("voc_concerns", "")
+
+        st.button("🎲 Random persona", on_click=_fill_random_persona_voc, key="voc_random")
+        vc1, vc2 = st.columns(2)
+        with vc1:
+            st.number_input("Age", min_value=25, max_value=85, key="voc_age")
+            st.selectbox("Risk tolerance", RISK_OPTIONS, key="voc_risk")
+        with vc2:
+            st.selectbox("Personality", PERSONALITY_OPTIONS, key="voc_personality")
+            voc_exchanges = st.slider("Conversation length (exchanges)", 2, 6, 3, key="voc_exchanges")
+        st.text_area("Client situation", height=70, key="voc_situation")
+        st.text_area("Key concerns", height=70, key="voc_concerns")
+
+        voc_ready = bool(st.session_state.voc_situation.strip() and st.session_state.voc_concerns.strip())
+        if st.button("Generate voiced conversation", type="primary", disabled=not voc_ready, key="voc_gen"):
+            with st.spinner("Simulating conversation…"):
+                turns = simulate_conversation(
+                    name=display_name,
+                    age=int(st.session_state.voc_age),
+                    situation=st.session_state.voc_situation.strip(),
+                    risk_tolerance=st.session_state.voc_risk.lower(),
+                    personality=st.session_state.voc_personality.lower(),
+                    concerns=st.session_state.voc_concerns.strip(),
+                    num_exchanges=int(voc_exchanges),
+                )
+            with st.spinner("Generating audio…"):
+                audio_bytes, timed = synthesize_conversation(turns)
+            st.session_state.voc_audio = audio_bytes
+            st.session_state.voc_timed = timed
+            st.session_state.voc_transcript = "\n\n".join(f"{t['role']}: {t['text']}" for t in turns)
+
+        if st.session_state.get("voc_audio"):
+            st.divider()
+            st.audio(st.session_state.voc_audio, format="audio/wav")
+            st.subheader("Transcript")
+            _render_timed_transcript(st.session_state.voc_timed)
+
+            st.divider()
+            if st.button("Run pipeline on this conversation", type="primary", key="voc_run"):
+                with st.spinner("Running through Haiku…"):
+                    result = run_chain(client_id, st.session_state.voc_transcript)
+                    save_meeting(client_id, {"notes": st.session_state.voc_transcript, **result})
+                st.success("Done — meeting saved to history")
+                vr1, vr2, vr3, vr4 = st.tabs(["Summary", "Action Items", "Planning Flags", "Follow-up Email"])
+                with vr1: md(result["summary"])
+                with vr2: md(result["action_items"])
+                with vr3: md(result["flags"])
+                with vr4: md(result["email"])
+
+    # ── I speak: push-to-talk, you play one side, AI plays the other ──
+    else:
+        if st.session_state.get("v_active") and st.session_state.get("v_client") != client_id:
+            for k in _VOICE_KEYS:
+                st.session_state.pop(k, None)
+
+        if not st.session_state.get("v_active"):
+            human_role = st.radio("You play the…", ["Advisor", "Client"], horizontal=True, key="v_role_choice")
+
+            if human_role == "Advisor":
+                st.markdown(f"The AI plays **{display_name}** (the client). Set their persona:")
+                st.session_state.setdefault("v_age", 50)
+                st.session_state.setdefault("v_risk", "Moderate")
+                st.session_state.setdefault("v_personality", PERSONALITY_OPTIONS[0])
+                st.session_state.setdefault("v_situation", "")
+                st.session_state.setdefault("v_concerns", "")
+
+                def _fill_v():
+                    p = random_persona()
+                    st.session_state.v_age = p["age"]; st.session_state.v_risk = p["risk"]
+                    st.session_state.v_personality = p["personality"]
+                    st.session_state.v_situation = p["situation"]; st.session_state.v_concerns = p["concerns"]
+
+                st.button("🎲 Random client persona", on_click=_fill_v, key="v_random")
+                vsc1, vsc2 = st.columns(2)
+                with vsc1:
+                    st.number_input("Age", min_value=25, max_value=85, key="v_age")
+                    st.selectbox("Risk tolerance", RISK_OPTIONS, key="v_risk")
+                with vsc2:
+                    st.selectbox("Personality", PERSONALITY_OPTIONS, key="v_personality")
+                st.text_area("Client situation", height=70, key="v_situation")
+                st.text_area("Key concerns", height=70, key="v_concerns")
+                v_ready = bool(st.session_state.v_situation.strip() and st.session_state.v_concerns.strip())
+            else:
+                st.markdown("The AI plays the **advisor** and will speak first. You answer out loud as the client.")
+                v_ready = True
+
+            if st.button("Start voice meeting", type="primary", disabled=not v_ready, key="v_start"):
+                st.session_state.v_human_role = human_role
+                st.session_state.v_ai_role = "Client" if human_role == "Advisor" else "Advisor"
+                st.session_state.v_client = client_id
+                st.session_state.v_messages = []
+                st.session_state.v_last_audio = None
+                if human_role == "Advisor":
+                    st.session_state.v_persona = {
+                        "name": display_name, "age": int(st.session_state.v_age),
+                        "situation": st.session_state.v_situation.strip(),
+                        "risk_tolerance": st.session_state.v_risk.lower(),
+                        "personality": st.session_state.v_personality.lower(),
+                        "concerns": st.session_state.v_concerns.strip(),
+                    }
+                else:
+                    st.session_state.v_persona = None
+                    with st.spinner("Starting the meeting…"):
+                        opening = ai_opening_line("Advisor")
+                        st.session_state.v_messages.append({"role": "Advisor", "text": opening})
+                        st.session_state.v_last_audio = speak(opening, "Advisor")
+                st.session_state.v_active = True
+                st.rerun()
+
+        else:
+            human_role = st.session_state.v_human_role
+            ai_role = st.session_state.v_ai_role
+            messages = st.session_state.v_messages
+
+            st.markdown(f"**You:** {human_role}  ·  **AI:** {ai_role}  ·  **Client:** {display_name}")
+
+            for m in messages:
+                who = "user" if m["role"] == human_role else "assistant"
+                with st.chat_message(who):
+                    st.markdown(f"**{m['role']}**")
+                    md(m["text"])
+
+            if st.session_state.get("v_last_audio"):
+                st.audio(st.session_state.v_last_audio, format="audio/wav", autoplay=True)
+
+            with st.form("voice_form", clear_on_submit=True):
+                clip = st.audio_input(f"Record your message as the {human_role.lower()}")
+                sent = st.form_submit_button("Send")
+
+            if sent and clip is not None:
+                with st.spinner("Transcribing…"):
+                    text = transcribe(clip.getvalue())
+                if text:
+                    messages.append({"role": human_role, "text": text})
+                    with st.spinner(f"{ai_role} is responding…"):
+                        reply = ai_reply(ai_role, transcript_from(messages), st.session_state.v_persona)
+                    messages.append({"role": ai_role, "text": reply})
+                    st.session_state.v_messages = messages
+                    st.session_state.v_last_audio = speak(reply, ai_role)
+                    st.rerun()
+                else:
+                    st.warning("Didn't catch that — try recording again.")
+
+            col_e, col_r = st.columns(2)
+            with col_e:
+                v_end = st.button("End & run pipeline", type="primary", disabled=len(messages) < 2, key="v_end")
+            with col_r:
+                if st.button("Reset conversation", key="v_reset"):
+                    for k in _VOICE_KEYS:
+                        st.session_state.pop(k, None)
+                    st.rerun()
+
+            if v_end:
+                transcript = transcript_from(messages)
+                with st.spinner("Running through Haiku…"):
+                    result = run_chain(client_id, transcript)
+                    save_meeting(client_id, {"notes": transcript, **result})
+                st.success("Done — meeting saved to history")
+                ve1, ve2, ve3, ve4 = st.tabs(["Summary", "Action Items", "Planning Flags", "Follow-up Email"])
+                with ve1: md(result["summary"])
+                with ve2: md(result["action_items"])
+                with ve3: md(result["flags"])
+                with ve4: md(result["email"])
 
 
 # ── History ──────────────────────────────────────────────────

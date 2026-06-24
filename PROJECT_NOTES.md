@@ -56,8 +56,13 @@ just shipping a working app. Build for depth, explain the "why," don't just hand
 - ✅ Meeting history view — all past meetings per client, newest first, full output in tabs
 - **V1 complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
 - ✅ V1.5 batch simulator — persona config (+ random persona) → generated transcript → V1 pipeline
-- ✅ V1.5 human-in-the-loop "Live Meeting" — you play advisor or client, AI plays the other via
-  chat; end the conversation to run the pipeline + save. Remaining V1.5 mode: real-time + audio (V3-ish).
+- ✅ V1.5 human-in-the-loop "Live Meeting" — you play advisor or client, AI plays the other via chat.
+- ✅ V1.5 Voice tab (push-to-talk, all free/local):
+  - "Two AI voices" — generates a voiced conversation (Daniel=advisor, Samantha=client) as one audio
+    file + a timestamped transcript (00:00:00, …); can run the pipeline on it.
+  - "I speak" — you talk out loud (mic → faster-whisper STT), AI replies in text + spoken audio.
+  - TTS = macOS `say` (free, robotic). STT = faster-whisper `base` local. Swap for lifelike voices later.
+  - Real-time/full-duplex voice (interrupt, zero-lag, Zoom) is still the V3 endgame — needs WebRTC.
 - Local env: Python 3.11, pip3, Anthropic key in `.env`. Start UI: `PATH="$PATH:/Users/shaunblaszak/Library/Python/3.11/bin" streamlit run app.py`
 
 ## Build order (each step independently testable)
