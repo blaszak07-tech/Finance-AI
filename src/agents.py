@@ -12,6 +12,7 @@ All calls go through the existing Claude `call` (default Haiku).
 import json
 from src.llm import call
 from src.profile import profile_summary
+from src.search import build_index, search_index
 
 SPECIALISTS = {
     "retirement": {
@@ -20,6 +21,7 @@ SPECIALISTS = {
 Focus ONLY on your domain: retirement timeline and feasibility, income replacement, withdrawal/drawdown
 strategy, savings adequacy, Social Security / pension timing, and longevity risk. Ignore tax and
 portfolio-construction issues unless they directly affect retirement readiness.""",
+        "retrieval_query": "retirement timeline, retirement age, income drawdown, withdrawals, savings adequacy, pension, social security, longevity",
     },
     "tax": {
         "label": "Tax Planning",
@@ -27,6 +29,7 @@ portfolio-construction issues unless they directly affect retirement readiness."
 Focus ONLY on your domain: tax brackets, Roth conversions, tax-loss harvesting, account-type tax
 efficiency, and tax-sensitive events (inheritance, liquidity events, RSU vesting, large gains).
 Ignore retirement-timeline and portfolio-risk issues unless they are tax-relevant.""",
+        "retrieval_query": "taxes, tax bracket, Roth conversion, capital gains, RSU vesting, inheritance, tax-loss harvesting, deductions",
     },
     "risk": {
         "label": "Risk & Portfolio",
@@ -34,6 +37,7 @@ Ignore retirement-timeline and portfolio-risk issues unless they are tax-relevan
 Focus ONLY on your domain: asset allocation, concentration risk, diversification, risk-tolerance
 signals and mismatches, market-volatility concerns, and rebalancing. Ignore tax and retirement-income
 issues unless they directly affect portfolio construction.""",
+        "retrieval_query": "asset allocation, portfolio risk, concentration, diversification, market volatility, risk tolerance, rebalancing",
     },
 }
 
@@ -55,15 +59,25 @@ Client profile context:
 
 Which specialists should review this? Return JSON only."""
 
-SPECIALIST_USER = """Meeting notes:
+SPECIALIST_USER = """Current meeting notes:
 {notes}
 
 Client profile context:
 {profile}
 
+Relevant excerpts from this client's PAST meetings (may be empty):
+{history}
+
 As the {label} specialist, identify the planning flags and considerations in YOUR domain only.
-Format as a short numbered list, each with a brief explanation. If nothing in your domain applies,
-reply exactly: "Nothing flagged in this area." """
+Focus on the current meeting, but use the past excerpts where they add insight or show a change over
+time — cite the meeting date when you reference one. Format as a short numbered list, each with a brief
+explanation. If nothing in your domain applies, reply exactly: "Nothing flagged in this area." """
+
+
+def _format_history(hits: list[dict]) -> str:
+    if not hits:
+        return "(no relevant prior history found)"
+    return "\n\n".join(f"[{h['timestamp']}] {h['text']}" for h in hits)
 
 
 def _route(notes: str, profile: str) -> tuple[list[str], str]:
@@ -82,19 +96,28 @@ def _route(notes: str, profile: str) -> tuple[list[str], str]:
     return selected, reasoning
 
 
-def run_analysis(client_id: str, notes: str) -> dict:
-    """Route to the relevant specialists and collect their findings."""
+def run_analysis(client_id: str, notes: str, index: tuple | None = None) -> dict:
+    """Route to the relevant specialists and collect their findings. Each specialist also
+    retrieves domain-relevant passages from the client's PAST meetings (RAG). Pass a prebuilt
+    `index` (chunks, embeddings) to reuse a cached one; otherwise it's built here."""
     profile = profile_summary(client_id)
+    chunks, embeddings = index if index is not None else build_index(client_id)
     selected, reasoning = _route(notes, profile)
 
     findings = []
     for key in selected:
         spec = SPECIALISTS[key]
+        hits = []
+        if len(chunks):
+            query = f"{spec['retrieval_query']}. {notes}"
+            hits = search_index(chunks, embeddings, query, top_k=3)
         out = call(
-            prompt=SPECIALIST_USER.format(notes=notes, profile=profile, label=spec["label"]),
+            prompt=SPECIALIST_USER.format(
+                notes=notes, profile=profile, history=_format_history(hits), label=spec["label"],
+            ),
             system=spec["system"],
         )
-        findings.append({"key": key, "label": spec["label"], "text": out})
+        findings.append({"key": key, "label": spec["label"], "text": out, "sources": hits})
 
     return {
         "reasoning": reasoning,

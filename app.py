@@ -613,8 +613,9 @@ with tab_agents:
     )
 
     if st.button("Run analyst team", type="primary", disabled=not ag_notes.strip(), key="ag_run"):
-        with st.spinner("Orchestrator routing → specialists analyzing…"):
-            st.session_state.ag_result = run_analysis(client_id, ag_notes.strip())
+        with st.spinner("Orchestrator routing → specialists analyzing history…"):
+            index = _cached_index(client_id, len(ag_meetings)) if ag_meetings else ([], None)
+            st.session_state.ag_result = run_analysis(client_id, ag_notes.strip(), index=index)
 
     res = st.session_state.get("ag_result")
     if res:
@@ -631,6 +632,13 @@ with tab_agents:
         for f in res["findings"]:
             st.markdown(f"#### {f['label']}")
             md(f["text"])
+            sources = f.get("sources", [])
+            if sources:
+                with st.expander(f"History this specialist pulled — {len(sources)} passage(s)"):
+                    for h in sources:
+                        st.markdown(f"`{h['timestamp']}` · similarity {h['score']:.2f}")
+                        md(h["text"])
+                        st.divider()
 
 
 # ── History ──────────────────────────────────────────────────
