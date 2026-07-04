@@ -73,3 +73,20 @@ was solid. Eval is the honest answer to "is the output actually good?": LLM-as-j
 tracked number, and finally lets us answer empirically whether Haiku is enough or a step needs Sonnet. Shaun
 wanted the accuracy score baked into the finished product (not just a demo), so it lives in the pipeline; the
 tab is the teaching view. Adds one judge call per meeting — acceptable on the token-only budget.
+
+### D-008 — V2 leftovers completed (2026-06-24)
+**Decided:** Finished the remaining V2 items in one pass so only V3/V4/front-end remain:
+(1) **Multi-agent panel** (`agents.run_panel`): specialists → cross-review each other → lead-advisor synthesis
+that resolves conflicts. Exposed as a "Panel" mode in the Agents tab (Quick vs Panel).
+(2) **MCP** (`mcp_server.py` + `mcp_bridge.py`): a genuine MCP server (FastMCP over stdio) exposing four finance
+calculators; the tool-loop agent discovers them via the protocol and calls them for exact math. Sync bridge wraps
+the async MCP client in `asyncio.run`; per-call subprocess (calculators are stateless). Falls back gracefully to
+built-in tools if MCP is unavailable.
+(3) **Structured financial extraction** (`financials.py`): a typed snapshot (accounts/other_assets/liabilities/
+income/goals, numeric) reconciled each meeting by handing Claude the existing snapshot + new notes (LLM-as-merger,
+avoids fuzzy name-matching in code). Net worth computed and shown in the sidebar. Wired into `run_chain`.
+(4) **Stronger flags prompt**: FLAGS_SYSTEM rewritten around real WM frameworks.
+**Why:** These round out the applied-AI surface: multi-agent collaboration (agents reading each other), the MCP
+standard (external tools over a protocol, exact computation vs hallucinated math), and typed extraction with
+structured-output discipline. All stay on the Haiku/token-only budget. MCP chosen as a real local server rather
+than a hosted one to honor "no paid services" while still demonstrating the actual protocol.

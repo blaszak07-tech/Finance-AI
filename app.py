@@ -4,11 +4,12 @@ from src.chain import run_chain
 from src.simulator import simulate_conversation, random_persona, ai_opening_line, ai_reply
 from src.voice import speak, transcribe, synthesize_conversation
 from src.search import build_index, search_index, answer_from_context
-from src.agents import run_analysis
-from src.tool_agent import run_agent
+from src.agents import run_analysis, run_panel
+from src.tool_agent import run_agent, available_tools
 from src.eval import run_eval, score_groundedness, SAMPLE_TRANSCRIPTS
-from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client
+from src.storage import save_meeting, load_meetings, list_clients, rename_client, delete_client, load_financials
 from src.profile import profile_summary
+from src.financials import net_worth
 
 
 def accuracy_caption(result_or_meeting: dict) -> None:
@@ -80,6 +81,33 @@ if client_id:
     if profile != "No prior profile on file for this client.":
         with st.sidebar.expander("Known profile"):
             st.text(profile)
+
+# Structured financial snapshot
+if client_id:
+    fin = load_financials(client_id)
+    if fin:
+        with st.sidebar.expander("💰 Financial snapshot"):
+            st.metric("Net worth", f"${net_worth(fin):,.0f}")
+            if fin.get("accounts"):
+                st.markdown("**Accounts**")
+                for a in fin["accounts"]:
+                    st.markdown(f"- {a.get('name', '?')} ({a.get('type', '')}): ${a.get('balance', 0):,.0f}")
+            if fin.get("other_assets"):
+                st.markdown("**Other assets**")
+                for a in fin["other_assets"]:
+                    st.markdown(f"- {a.get('name', '?')}: ${a.get('value', 0):,.0f}")
+            if fin.get("liabilities"):
+                st.markdown("**Liabilities**")
+                for l in fin["liabilities"]:
+                    st.markdown(f"- {l.get('name', '?')}: ${l.get('balance', 0):,.0f}")
+            if fin.get("income"):
+                st.markdown("**Income**")
+                for inc in fin["income"]:
+                    st.markdown(f"- {inc.get('source', '?')}: ${inc.get('annual', 0):,.0f}/yr")
+            if fin.get("goals"):
+                st.markdown("**Goals**")
+                for g in fin["goals"]:
+                    st.markdown(f"- {g.get('goal', '?')} — {g.get('target', '')}")
 
 # Manage existing client (rename / delete)
 if client_id and client_mode == "Existing client":
@@ -396,10 +424,21 @@ with tab_ask:
                     st.divider()
 
 
+def _render_specialist_sources(sources):
+    if sources:
+        with st.expander(f"History this specialist pulled — {len(sources)} passage(s)"):
+            for h in sources:
+                st.markdown(f"`{h['timestamp']}` · similarity {h['score']:.2f}")
+                md(h["text"])
+                st.divider()
+
+
 # ── Agents (orchestrator + specialist analysts) ──────────────
 with tab_agents:
-    st.caption("An orchestrator agent reads the meeting and routes it to only the relevant specialist analysts — Retirement & Income, Tax, Risk & Portfolio. You see which it picked and why.")
+    st.caption("An orchestrator routes the meeting to only the relevant specialist analysts — Retirement & Income, Tax, Risk & Portfolio. Quick = one pass each. Panel = they also cross-review each other and a lead advisor synthesizes a conflict-resolved plan (multi-agent).")
     ag_meetings = load_meetings(client_id)
+
+    ag_mode = st.radio("Analysis mode", ["Quick (single pass)", "Panel (multi-agent)"], horizontal=True, key="ag_mode")
 
     st.session_state.setdefault("ag_notes", "")
     if ag_meetings and ag_meetings[0].get("notes"):
@@ -414,9 +453,13 @@ with tab_agents:
     )
 
     if st.button("Run analyst team", type="primary", disabled=not ag_notes.strip(), key="ag_run"):
-        with st.spinner("Orchestrator routing → specialists analyzing history…"):
-            index = _cached_index(client_id, len(ag_meetings)) if ag_meetings else ([], None)
-            st.session_state.ag_result = run_analysis(client_id, ag_notes.strip(), index=index)
+        index = _cached_index(client_id, len(ag_meetings)) if ag_meetings else ([], None)
+        if ag_mode.startswith("Panel"):
+            with st.spinner("Routing → specialists analyzing → cross-review → lead advisor synthesis…"):
+                st.session_state.ag_result = {"mode": "panel", **run_panel(client_id, ag_notes.strip(), index=index)}
+        else:
+            with st.spinner("Orchestrator routing → specialists analyzing history…"):
+                st.session_state.ag_result = {"mode": "quick", **run_analysis(client_id, ag_notes.strip(), index=index)}
 
     res = st.session_state.get("ag_result")
     if res:
@@ -428,23 +471,37 @@ with tab_agents:
         if skipped:
             st.caption("Skipped: " + ", ".join(skipped))
         md(f"_Reasoning:_ {res['reasoning']}")
-
         st.divider()
-        for f in res["findings"]:
-            st.markdown(f"#### {f['label']}")
-            md(f["text"])
-            sources = f.get("sources", [])
-            if sources:
-                with st.expander(f"History this specialist pulled — {len(sources)} passage(s)"):
-                    for h in sources:
-                        st.markdown(f"`{h['timestamp']}` · similarity {h['score']:.2f}")
-                        md(h["text"])
-                        st.divider()
+
+        if res.get("mode") == "panel":
+            st.markdown("### 🧑‍⚖️ Lead advisor — synthesized plan")
+            md(res["synthesis"])
+            st.divider()
+            st.markdown("#### Specialist findings & cross-review")
+            cross_by_key = {c["key"]: c["text"] for c in res.get("cross", [])}
+            for f in res["round1"]:
+                with st.expander(f"{f['label']}"):
+                    st.markdown("**Initial findings**")
+                    md(f["text"])
+                    if f["key"] in cross_by_key:
+                        st.markdown("**Cross-review (after seeing the others)**")
+                        md(cross_by_key[f["key"]])
+                    _render_specialist_sources(f.get("sources", []))
+        else:
+            for f in res["findings"]:
+                st.markdown(f"#### {f['label']}")
+                md(f["text"])
+                _render_specialist_sources(f.get("sources", []))
 
 
 # ── Auto-Agent (full tool-use loop) ──────────────────────────
 with tab_autoagent:
-    st.caption("An autonomous agent. Unlike the Agents tab (one fixed routing step), this one runs in a loop: it's given tools (search history, get profile, consult specialists), decides which to call, sees the result, and decides its next move — until it can answer. You watch it work.")
+    st.caption("An autonomous agent. Unlike the Agents tab (one fixed routing step), this one runs in a loop: it decides which tool to call, sees the result, and decides its next move — until it can answer. You watch it work.")
+    with st.expander("Tools the agent can use"):
+        _tools = available_tools()
+        st.markdown("**Built-in:** " + ", ".join(f"`{t}`" for t in _tools["built-in"]))
+        st.markdown("**MCP server (finance calculators):** " + ", ".join(f"`{t}`" for t in _tools["MCP server"]))
+        st.caption("The MCP tools run in a separate server process and are discovered over the Model Context Protocol — the agent gets exact math instead of estimating.")
     aa_meetings = load_meetings(client_id)
 
     aa_q = st.text_input(

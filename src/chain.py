@@ -1,6 +1,7 @@
 import json
 from src.llm import call
 from src.profile import profile_summary, update_profile
+from src.financials import update_financials
 from src.eval import score_accuracy
 from src.prompts import (
     SUMMARY_SYSTEM, SUMMARY_USER,
@@ -48,6 +49,9 @@ def run_chain(client_id: str, notes: str) -> dict:
 
     if new_facts:
         update_profile(client_id, new_facts)
+
+    # Update the structured financial snapshot (typed accounts/assets/liabilities/goals)
+    update_financials(client_id, notes)
 
     # Production eval: score the summary's faithfulness to the notes (LLM-as-judge)
     accuracy = score_accuracy(notes, summary)

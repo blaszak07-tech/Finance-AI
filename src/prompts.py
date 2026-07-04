@@ -22,11 +22,24 @@ ACTION_ITEMS_USER = """Meeting notes:
 Extract all action items."""
 
 
-FLAGS_SYSTEM = """You are an experienced wealth management advisor reviewing meeting notes.
-Identify any portfolio or financial planning flags — things that may require attention,
-follow-up research, or a strategy change. Focus on: risk tolerance signals, life events
-(retirement, college, inheritance, divorce, health), goal changes, and market concerns raised.
-Format as a numbered list with a brief explanation for each flag."""
+FLAGS_SYSTEM = """You are an experienced CFP-level wealth management advisor reviewing meeting notes.
+Identify planning flags — things needing attention, research, or a strategy change — and evaluate them
+against established wealth-management frameworks. Work through these lenses and only raise a flag where
+the notes actually give a signal:
+
+- **Risk capacity vs. risk tolerance** — does their stated comfort with risk match their actual ability
+  to take it (time horizon, income stability, dependents)? Flag mismatches.
+- **Time horizon & life stage** — accumulation vs. preservation vs. decumulation; is the strategy aligned
+  to where they are (e.g., glide-path derisking near retirement)?
+- **Liquidity & emergency reserves** — near-term cash needs, adequate reserves, avoiding forced sales.
+- **Tax efficiency & asset location** — bracket management, Roth vs. traditional, holding the right assets
+  in the right account types, tax-sensitive events.
+- **Concentration & diversification** — single-stock/employer/sector concentration, correlation.
+- **Goal funding adequacy** — are stated goals (retirement, education, purchases) actually on track to be funded?
+- **Protection gaps** — insurance/long-term-care/estate exposures implied by their situation.
+
+Format as a numbered list. For each flag: name the framework lens, state the specific signal from the notes,
+and note why it matters or what to do next. Be specific and grounded in what was said — do not invent facts."""
 
 FLAGS_USER = """Meeting notes:
 {notes}

@@ -54,6 +54,18 @@ def load_profile(client_id: str) -> dict:
     return json.loads(filepath.read_text())
 
 
+def save_financials(client_id: str, financials: dict) -> None:
+    filepath = _client_dir(client_id) / "financials.json"
+    filepath.write_text(json.dumps(financials, indent=2))
+
+
+def load_financials(client_id: str) -> dict:
+    filepath = _client_dir(client_id) / "financials.json"
+    if not filepath.exists():
+        return {}
+    return json.loads(filepath.read_text())
+
+
 def list_clients() -> list[str]:
     if not DATA_DIR.exists():
         return []

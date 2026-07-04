@@ -107,11 +107,19 @@ Finance AI/
   - ✅ **full tool-loop agent** ("Auto-Agent" tab, `src/tool_agent.py`) — autonomous: given tools
     (search_history, get_profile, run_specialist), it loops act→observe→decide until it can answer.
     Uses Claude tool use. UI shows the full trace (thoughts + tool calls + results). See D-007.
-  - ✅ **eval system** (`src/eval.py`) — LLM-as-judge accuracy scoring. PRODUCTION: `score_accuracy`
-    is wired into `run_chain`, so every saved meeting carries a 0-100 accuracy score (shown under each
-    summary in New Meeting / Voice / History). EDUCATIONAL: "Eval" tab shows the full breakdown
-    (summary → score → hallucinations/omissions/reasoning, multi-run consistency). See D-007.
-  - ⬜ multi-agent · MCP tool connections · structured financial extraction · stronger WM flags prompt
+  - ✅ **eval system** (`src/eval.py`) — LLM-as-judge. `score_accuracy` (summary vs transcript) wired into
+    `run_chain` → every meeting carries a 0-100 score. `score_groundedness` scores Ask + Auto-Agent answers
+    vs the evidence they used. Educational "Eval" tab shows the full breakdown. See D-007.
+  - ✅ **multi-agent panel** (`src/agents.py` `run_panel`, Agents tab "Panel" mode) — specialists give
+    initial findings, then CROSS-REVIEW each other, then a lead advisor synthesizes a conflict-resolved plan.
+  - ✅ **MCP** (`src/mcp_server.py` + `src/mcp_bridge.py`) — real MCP server exposing finance calculators
+    (future_value, retirement_projection, savings_needed, safe_withdrawal_income) over stdio; the tool-loop
+    agent discovers + calls them for exact math. See D-008.
+  - ✅ **structured financial extraction** (`src/financials.py`) — typed snapshot (accounts/assets/
+    liabilities/income/goals as numbers) merged per meeting via LLM-as-merger; net worth in the sidebar.
+  - ✅ **stronger WM-framework flags prompt** — FLAGS_SYSTEM now works through CFP-level lenses
+    (risk capacity vs tolerance, time horizon, liquidity, tax/asset-location, concentration, funding, protection).
+  - **V2 layer COMPLETE.** Remaining project work: V3 (real-time voice) · V4 (platforms) · front-end polish.
 - **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
   Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline
   running live on the audio. Can be done free (Whisper + Silero VAD + Piper TTS + Claude tokens +

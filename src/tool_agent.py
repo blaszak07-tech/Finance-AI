@@ -17,6 +17,17 @@ from src.llm import _client, DEFAULT_MODEL, call
 from src.search import build_index, search_index
 from src.profile import profile_summary
 from src.agents import SPECIALISTS, SPECIALIST_USER, _format_history
+from src.mcp_bridge import list_mcp_tools, call_mcp_tool
+
+_mcp_cache = None
+
+
+def _mcp_tools() -> list[dict]:
+    """MCP-served tools (finance calculators), discovered once and cached."""
+    global _mcp_cache
+    if _mcp_cache is None:
+        _mcp_cache = list_mcp_tools()
+    return _mcp_cache
 
 TOOLS = [
     {
@@ -56,15 +67,20 @@ TOOLS = [
 ]
 
 AGENT_SYSTEM = """You are an autonomous wealth management analyst for one specific client. You have tools
-to search the client's meeting history, fetch their profile, and consult specialist analysts (retirement,
-tax, risk).
+to search the client's meeting history, fetch their profile, consult specialist analysts (retirement, tax,
+risk), and run exact finance calculators (future value, retirement projection, required savings, safe
+withdrawal income).
 
 Work step by step. Gather what you genuinely need with tools, then give a clear, grounded final answer.
-Cite meeting dates when you rely on history. Don't call a tool if you already have the information. As
-soon as you can answer well, stop calling tools and write the final answer."""
+Use the calculators for any math rather than estimating figures yourself. Cite meeting dates when you rely
+on history. Don't call a tool if you already have the information. As soon as you can answer well, stop
+calling tools and write the final answer."""
 
 
 def _execute_tool(name: str, tool_input: dict, client_id: str, index: tuple, question: str) -> str:
+    if name in {t["name"] for t in _mcp_tools()}:
+        return call_mcp_tool(name, tool_input)
+
     chunks, embeddings = index
     if name == "search_history":
         if not len(chunks):
@@ -91,6 +107,14 @@ def _execute_tool(name: str, tool_input: dict, client_id: str, index: tuple, que
     return f"Unknown tool '{name}'."
 
 
+def available_tools() -> dict:
+    """Tool names grouped by source, for display."""
+    return {
+        "built-in": [t["name"] for t in TOOLS],
+        "MCP server": [t["name"] for t in _mcp_tools()],
+    }
+
+
 def run_agent(client_id: str, question: str, index: tuple | None = None, max_steps: int = 6) -> dict:
     """Run the tool-use loop. Returns {answer, steps} where steps is the trace of the
     agent's thoughts and tool actions (for the educational view)."""
@@ -99,13 +123,14 @@ def run_agent(client_id: str, question: str, index: tuple | None = None, max_ste
 
     messages = [{"role": "user", "content": f"Question about this client: {question}"}]
     steps: list[dict] = []
+    all_tools = TOOLS + _mcp_tools()
 
     for _ in range(max_steps):
         response = _client.messages.create(
             model=DEFAULT_MODEL,
             max_tokens=1500,
             system=AGENT_SYSTEM,
-            tools=TOOLS,
+            tools=all_tools,
             messages=messages,
         )
         assistant_text = "".join(b.text for b in response.content if b.type == "text").strip()

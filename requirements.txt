@@ -4,5 +4,6 @@ python-dotenv     # loads .env file into os.environ
 streamlit         # simple local web UI
 faster-whisper    # local speech-to-text for the Voice tab (free, runs on CPU)
 fastembed         # local text embeddings for semantic search / RAG (free, onnxruntime, no torch)
+mcp               # Model Context Protocol — local finance-calculator tool server for the tool-loop agent
 # Voice TTS uses the built-in macOS `say` command — no Python package needed.
 # (Versions left unpinned for now; once installed we can pin them here for reproducibility.)

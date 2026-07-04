@@ -125,3 +125,82 @@ def run_analysis(client_id: str, notes: str, index: tuple | None = None) -> dict
         "findings": findings,
         "available": {k: v["label"] for k, v in SPECIALISTS.items()},
     }
+
+
+# ── Multi-agent panel: specialists cross-review, a lead advisor synthesizes ──
+
+CROSS_REVIEW_USER = """You are the {label} specialist. You already gave your initial findings. Here are the
+OTHER specialists' findings on the same client:
+
+{others}
+
+Add cross-domain considerations from YOUR perspective ONLY: where your domain interacts with theirs, conflicts
+or dependencies between recommendations (e.g., a tax move that strains liquidity), or a risk they missed that
+touches your domain. 2-4 short bullets. If there's genuinely nothing to add, reply exactly: "No cross-domain concerns." """
+
+LEAD_ADVISOR_SYSTEM = """You are the lead wealth management advisor coordinating a team of specialists.
+Synthesize their analysis into ONE prioritized action plan for the client. Where specialists conflict
+(e.g., tax wants a Roth conversion but liquidity needs argue against it), state the tradeoff explicitly and
+make a recommendation. Be concrete and grounded in what the specialists actually found — never invent client
+facts. Output a short, prioritized numbered list of recommendations, highest-impact first."""
+
+LEAD_ADVISOR_USER = """Client meeting notes:
+{notes}
+
+Specialist findings and cross-review notes:
+{panel}
+
+Produce a single prioritized action plan, resolving any conflicts between specialists."""
+
+
+def _specialist_findings(key, notes, profile, chunks, embeddings):
+    spec = SPECIALISTS[key]
+    hits = []
+    if len(chunks):
+        hits = search_index(chunks, embeddings, f"{spec['retrieval_query']}. {notes}", top_k=3)
+    text = call(
+        prompt=SPECIALIST_USER.format(
+            notes=notes, profile=profile, history=_format_history(hits), label=spec["label"],
+        ),
+        system=spec["system"],
+    )
+    return {"key": key, "label": spec["label"], "text": text, "sources": hits}
+
+
+def run_panel(client_id: str, notes: str, index: tuple | None = None) -> dict:
+    """Multi-agent panel: (1) each relevant specialist gives initial findings, (2) each then cross-reviews
+    the others' findings, (3) a lead advisor synthesizes a unified, conflict-resolved plan."""
+    profile = profile_summary(client_id)
+    chunks, embeddings = index if index is not None else build_index(client_id)
+    selected, reasoning = _route(notes, profile)
+
+    # Round 1 — initial findings
+    round1 = [_specialist_findings(key, notes, profile, chunks, embeddings) for key in selected]
+
+    # Round 2 — cross-review (only meaningful with 2+ specialists)
+    cross = []
+    if len(round1) > 1:
+        for item in round1:
+            others = "\n\n".join(f"### {o['label']}\n{o['text']}" for o in round1 if o["key"] != item["key"])
+            text = call(
+                prompt=CROSS_REVIEW_USER.format(label=item["label"], others=others),
+                system=SPECIALISTS[item["key"]]["system"],
+            )
+            cross.append({"key": item["key"], "label": item["label"], "text": text})
+
+    # Synthesis — lead advisor
+    panel_text = "".join(f"## {o['label']} — initial\n{o['text']}\n\n" for o in round1)
+    panel_text += "".join(f"## {c['label']} — cross-review\n{c['text']}\n\n" for c in cross)
+    synthesis = call(
+        prompt=LEAD_ADVISOR_USER.format(notes=notes, panel=panel_text),
+        system=LEAD_ADVISOR_SYSTEM,
+    )
+
+    return {
+        "reasoning": reasoning,
+        "selected": selected,
+        "round1": round1,
+        "cross": cross,
+        "synthesis": synthesis,
+        "available": {k: v["label"] for k, v in SPECIALISTS.items()},
+    }
