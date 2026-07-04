@@ -1,0 +1,7 @@
+# V3 — real-time voice (live/bot.py). Heavier & macOS-Apple-Silicon specific (MLX), so kept
+# separate from the main app's requirements.txt. Install:  pip3 install -r requirements-live.txt
+#
+# All local/free; Claude tokens are the only cost.
+#   Silero VAD (barge-in) · MLX Whisper (STT) · Claude (LLM) · Kokoro (TTS) · WebRTC transport
+pipecat-ai[silero,webrtc,mlx-whisper,kokoro,runner]
+pipecat-ai-prebuilt

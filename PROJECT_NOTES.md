@@ -120,7 +120,14 @@ Finance AI/
   - ✅ **stronger WM-framework flags prompt** — FLAGS_SYSTEM now works through CFP-level lenses
     (risk capacity vs tolerance, time horizon, liquidity, tax/asset-location, concentration, funding, protection).
   - **V2 layer COMPLETE.** Remaining project work: V3 (real-time voice) · V4 (platforms) · front-end polish.
-- **V3 — real-time interruptible voice. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.**
+- **V3 — real-time interruptible voice: STARTED / core milestone BUILT.** `live/bot.py` (+ `live/README.md`,
+  `requirements-live.txt`). Pipecat pipeline, all local/free except Claude tokens: browser mic → WebRTC →
+  Silero VAD (barge-in) → MLX Whisper STT → Claude Haiku → Kokoro TTS → speakers. Runs OUTSIDE Streamlit
+  (own process + browser UI at localhost:7860) but SHARES `data/` — on hangup the convo runs through
+  `run_chain` + `save_meeting` into history. You=client, AI=advisor; interruptible. Verified: server boots,
+  prebuilt UI serves, Kokoro RTF 0.22x. Remaining V3 extensions: two-AI-live · live pipeline overlay ·
+  lifelike voices (paid). See D-009. THIS IS THE LAST BUILD STEP BEFORE real meeting platforms.
+- **V3 (original note) — the last build step before real meeting platforms.**
   Full-duplex, low-latency, barge-in voice (talk over each other naturally), with the V1 pipeline
   running live on the audio. Can be done free (Whisper + Silero VAD + Piper TTS + Claude tokens +
   Pipecat/LiveKit), but it's the biggest jump: it moves OFF Streamlit to WebRTC + a real frontend,

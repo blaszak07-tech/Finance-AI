@@ -90,3 +90,20 @@ avoids fuzzy name-matching in code). Net worth computed and shown in the sidebar
 standard (external tools over a protocol, exact computation vs hallucinated math), and typed extraction with
 structured-output discipline. All stay on the Haiku/token-only budget. MCP chosen as a real local server rather
 than a hosted one to honor "no paid services" while still demonstrating the actual protocol.
+
+### D-009 — V3 real-time voice: Pipecat + all-local stack (2026-06-24)
+**Decided:** Built the V3 core (`live/bot.py`) with **Pipecat** orchestrating a fully local/free real-time
+voice loop: SmallWebRTC transport (browser mic) → Silero VAD (barge-in/turn-taking) → MLX Whisper STT
+(Apple-Silicon-native) → Claude Haiku (Anthropic service) → Kokoro TTS → speakers. Runs as a SEPARATE process
+(Pipecat's runner serves a prebuilt WebRTC UI at :7860) because Streamlit can't do full-duplex audio; it shares
+the `data/` store and on hangup runs `run_chain` + `save_meeting` so live meetings land in history. You play the
+client, AI plays the advisor. Deps kept in a separate `requirements-live.txt` (heavy + macOS/MLX-specific) so the
+main Streamlit app stays light. Fixed the macOS Python SSL/nltk cert issue via certifi. First feasibility-probed
+the whole stack (installs + Kokoro RTF 0.22x + server boots + UI serves) before building.
+**Why:** Real-time interruptible voice needs streaming + WebRTC, which Streamlit fundamentally can't do — so V3
+is architecturally separate by necessity, not choice. Pipecat is the standard open-source framework for exactly
+this loop and had free local services for every stage, keeping the tokens-only budget intact (money would only buy
+lower latency / lifelike voices, not the feature). Probing before building retired the "biggest, riskiest build"
+risk up front. Chose you=client / AI=advisor as the most natural first demo; two-AI-live and a live pipeline
+overlay are clean follow-on extensions. This is the last major build before V4 platform integration, which reuses
+this exact stack pointed at a real call instead of a browser mic.
