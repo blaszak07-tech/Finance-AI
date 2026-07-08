@@ -143,10 +143,16 @@ Finance AI/
   always an assembled STT→Claude→TTS pipeline, never a single speech-to-speech call. Lifelike voices
   (ElevenLabs) and instant cloud latency (OpenAI/Gemini Realtime) are the paid upgrades if the
   tokens-only budget is ever revisited — the feature itself is free, money buys speed + voice quality.
-- **V4 — actual meeting-platform integration (the real-world endgame, AFTER V3 voice works):** put the
-  assistant into live Zoom / Google Meet / Teams calls — a bot that joins the call (or a virtual audio
-  device) capturing real audio → live transcript → pipeline runs during/after the meeting. This is what
-  Otter.ai / Fireflies do. Only sensible once the real-time voice stack (V3) is solid, since it reuses it.
+- **V4 — live meeting capture: BUILT (free, local).** "Live meeting" option in New Meeting. Captures any
+  Zoom/Meet/Teams call by recording the Mac's audio via `sounddevice` (`src/capture.py`) → faster-whisper
+  transcribes (`voice.transcribe_file`) → `run_chain` → saved to the client's history. Backend endpoints:
+  `/api/audio/devices`, `/api/clients/{id}/live/start|stop`, `/api/live/status`. Chose LOCAL system-audio
+  capture over a bot-joins-call approach because the universal bot route (Recall.ai) is paid and per-platform
+  SDKs are fragile/Meet has no audio API. Requires a one-time manual setup the USER does: install BlackHole
+  (`brew install blackhole-2ch`) + a Multi-Output (speakers+BlackHole) and Aggregate (mic+BlackHole) device
+  in Audio MIDI Setup; pick the aggregate device as the capture source. V4 is a LOCAL (tier-2) demo/talk
+  feature — inherently can't be hosted (can't capture a viewer's audio from a server), shown via demo video.
+  See D-010. Stretch: live transcript during the call; per-speaker diarization (not free).
 
 **Delivery sequencing of the two cross-cutting finishing steps (apply LAST, in this order):**
 1. **Polish + front-end design pass** (using the frontend-design skill) — comes only after the

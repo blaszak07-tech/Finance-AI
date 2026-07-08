@@ -81,9 +81,63 @@ export default function NewMeeting() {
   const [risk, setRisk] = useState("moderate");
   const [exchanges, setExchanges] = useState(3);
 
+  // live capture
+  const [devices, setDevices] = useState<{ index: number; name: string; channels: number }[]>([]);
+  const [device, setDevice] = useState<number | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [liveMsg, setLiveMsg] = useState("");
+
   useEffect(() => {
     api.client(id!).then(setClient).catch(() => {});
   }, [id]);
+
+  useEffect(() => {
+    if (mode === "live")
+      api.audioDevices().then((d) => {
+        setDevices(d);
+        if (d.length && device == null) setDevice(d[0].index);
+      }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  useEffect(() => {
+    if (!recording) return;
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [recording]);
+
+  const fmtElapsed = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  const startLive = async () => {
+    if (device == null) return;
+    setLiveMsg("");
+    try {
+      await api.liveStart(id!, device);
+      setElapsed(0);
+      setRecording(true);
+    } catch (e) {
+      setLiveMsg((e as Error).message);
+    }
+  };
+
+  const stopLive = async () => {
+    setBusy(true);
+    try {
+      const r = await api.liveStop(id!);
+      setRecording(false);
+      if (r.id) nav(`/c/${id}/m/${r.id}`);
+      else {
+        setLiveMsg("No speech was captured — check your audio setup below and try again.");
+        setBusy(false);
+      }
+    } catch (e) {
+      setLiveMsg((e as Error).message);
+      setRecording(false);
+      setBusy(false);
+    }
+  };
 
   const savePaste = async () => {
     setBusy(true);
@@ -132,10 +186,9 @@ export default function NewMeeting() {
           />
           <OptionCard
             title="Live meeting"
-            desc="Join a Zoom or Meet call and capture it as it happens."
+            desc="Capture a Zoom, Meet, or Teams call as it happens."
             active={mode === "live"}
             onClick={() => setMode("live")}
-            soon
           />
           <OptionCard
             title="Simulated meeting"
@@ -166,11 +219,76 @@ export default function NewMeeting() {
 
           {mode === "live" && (
             <Card className="p-6">
-              <h3 className="font-display text-lg text-paper">Live call capture</h3>
-              <p className="mt-2 max-w-xl text-sm text-mist">
-                This will connect to a Zoom, Google Meet, or Teams call, transcribe it in real time, and
-                run the meeting through your pipeline as it unfolds. It's next on the roadmap.
-              </p>
+              {!recording ? (
+                <>
+                  <h3 className="font-display text-lg text-paper">Capture a live call</h3>
+                  <p className="mt-2 max-w-xl text-sm text-mist">
+                    Records this Zoom, Meet, or Teams call through your Mac's audio, then turns it into a
+                    meeting. Please let everyone on the call know you're recording.
+                  </p>
+                  <div className="mt-5 max-w-sm">
+                    <span className="mb-1.5 block text-xs font-medium text-mist">Capture device</span>
+                    <select
+                      value={device ?? ""}
+                      onChange={(e) => setDevice(Number(e.target.value))}
+                      className="w-full rounded-lg border border-line bg-ink px-3.5 py-2.5 text-sm text-paper focus:border-gilt focus:outline-none"
+                    >
+                      {devices.map((d) => (
+                        <option key={d.index} value={d.index}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-4">
+                    <Button variant="primary" disabled={device == null} onClick={startLive}>
+                      Start capture
+                    </Button>
+                  </div>
+                  {liveMsg && <p className="mt-3 text-sm text-[#c98b8b]">{liveMsg}</p>}
+                  <details className="mt-6 border-t border-line-soft pt-4 text-sm text-mist">
+                    <summary className="cursor-pointer text-mute transition-colors hover:text-mist">
+                      One-time audio setup
+                    </summary>
+                    <div className="mt-3 space-y-2 text-sm leading-relaxed text-mist">
+                      <p>To capture both sides of a call, route your audio through a free virtual device:</p>
+                      <ol className="ml-4 list-decimal space-y-1">
+                        <li>
+                          Install BlackHole: <code className="text-paper">brew install blackhole-2ch</code>
+                        </li>
+                        <li>
+                          Open <span className="text-paper">Audio MIDI Setup</span>. Create a{" "}
+                          <span className="text-paper">Multi-Output Device</span> (your speakers + BlackHole)
+                          and set it as your Mac's output so you still hear the call.
+                        </li>
+                        <li>
+                          Create an <span className="text-paper">Aggregate Device</span> (your microphone +
+                          BlackHole). Pick that as the capture device above.
+                        </li>
+                      </ol>
+                      <p className="text-mute">
+                        First capture will ask macOS for microphone permission — allow it.
+                      </p>
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <div className="flex flex-col items-start gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#c98b8b]" />
+                    <span className="text-sm tabular-nums text-paper">Recording · {fmtElapsed(elapsed)}</span>
+                  </div>
+                  <p className="max-w-xl text-sm text-mist">
+                    Have your call as normal. Stop when you're done and it'll be transcribed and processed.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Button variant="primary" disabled={busy} onClick={stopLive}>
+                      {busy ? "Processing…" : "Stop and process"}
+                    </Button>
+                    {busy && <Spinner />}
+                  </div>
+                </div>
+              )}
             </Card>
           )}
 

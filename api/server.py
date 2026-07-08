@@ -26,6 +26,8 @@ from src.agents import run_panel
 from src.tool_agent import run_agent
 from src.simulator import simulate_conversation
 from src.overview import client_quicklook
+from src import capture
+from src.voice import transcribe_file
 
 app = FastAPI(title="WM Assistant API")
 
@@ -201,6 +203,53 @@ async def simulate(client_id: str, body: SimulateBody):
             path = storage.save_meeting(client_id, {"notes": transcript, **result})
             meeting_id = path.stem
         return {"turns": turns, "transcript": transcript, "meetingId": meeting_id}
+
+    return await _run(_work)
+
+
+# ── Live meeting capture (V4) ────────────────────────────────
+class LiveStart(BaseModel):
+    device: int
+
+
+@app.get("/api/audio/devices")
+def audio_devices():
+    try:
+        return capture.list_input_devices()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audio unavailable: {e}")
+
+
+@app.get("/api/live/status")
+def live_status():
+    return capture.status()
+
+
+@app.post("/api/clients/{client_id}/live/start")
+def live_start(client_id: str, body: LiveStart):
+    if client_id not in storage.list_clients():
+        raise HTTPException(status_code=404, detail="Client not found")
+    try:
+        capture.start(body.device)
+    except Exception as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"ok": True}
+
+
+@app.post("/api/clients/{client_id}/live/stop")
+async def live_stop(client_id: str):
+    try:
+        path = capture.stop()
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    def _work():
+        transcript = transcribe_file(path)
+        if not transcript.strip():
+            return {"id": None, "empty": True}
+        result = run_chain(client_id, transcript)
+        saved = storage.save_meeting(client_id, {"notes": transcript, **result})
+        return {"id": saved.stem, "empty": False}
 
     return await _run(_work)
 

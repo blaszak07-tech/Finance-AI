@@ -88,18 +88,27 @@ def synthesize_conversation(turns: list[dict]) -> tuple[bytes, list[dict]]:
 
 
 # ── Speech to text ───────────────────────────────────────────
-def transcribe(wav_bytes: bytes) -> str:
-    """Transcribe recorded WAV bytes to text using local faster-whisper."""
+def _get_model():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
         _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+    return _whisper_model
 
+
+def transcribe(wav_bytes: bytes) -> str:
+    """Transcribe recorded WAV bytes to text using local faster-whisper."""
     tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
     tmp.write(wav_bytes)
     tmp.close()
     try:
-        segments, _ = _whisper_model.transcribe(tmp.name)
+        segments, _ = _get_model().transcribe(tmp.name)
         return " ".join(s.text for s in segments).strip()
     finally:
         os.unlink(tmp.name)
+
+
+def transcribe_file(path: str) -> str:
+    """Transcribe a WAV file on disk (used for full-meeting live captures)."""
+    segments, _ = _get_model().transcribe(path)
+    return " ".join(s.text for s in segments).strip()

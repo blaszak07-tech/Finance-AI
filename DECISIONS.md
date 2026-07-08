@@ -107,3 +107,18 @@ lower latency / lifelike voices, not the feature). Probing before building retir
 risk up front. Chose you=client / AI=advisor as the most natural first demo; two-AI-live and a live pipeline
 overlay are clean follow-on extensions. This is the last major build before V4 platform integration, which reuses
 this exact stack pointed at a real call instead of a browser mic.
+
+### D-010 — V4 live meeting capture: local system-audio, not a bot (2026-07-08)
+**Decided:** Built V4 as LOCAL system-audio capture (`src/capture.py` via `sounddevice`) wired to the "Live
+meeting" option: record the Mac's audio during any real Zoom/Meet/Teams call → faster-whisper → `run_chain` →
+saved meeting. The user does a one-time manual setup (BlackHole virtual driver + Multi-Output + Aggregate device)
+and selects the aggregate device; the app lists input devices and does start/stop/transcribe/save. Rejected the
+"bot joins the call" approach: the universal version (Recall.ai) is paid, and DIY per-platform SDKs are fragile
+(Google Meet has no official audio API). `sounddevice` captures ALL input channels and downmixes to mono so both
+the advisor's mic and the other party (through BlackHole) land in one transcript.
+**Why:** Local capture is the only FREE, platform-agnostic path and reuses the existing Whisper + pipeline. The
+BlackHole manual step is invisible to a portfolio audience (nobody installs the project from a resume) and is a
+strong interview talking point (build-vs-buy, platform constraints). It does make V4 a **tier-2 local feature**
+(demo video / screen-share), not part of the hosted clickable app — same category as V3 voice, since neither can
+capture a remote viewer's audio. Consent reminder shown in the UI (recording-law hygiene). Whisper hallucinates
+text from silence, so an empty/near-silent capture path is handled (returns empty, no junk meeting).

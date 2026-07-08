@@ -43,6 +43,10 @@ export const api = {
 
   simulate: (id: string, body: Record<string, unknown>) =>
     post(`/api/clients/${id}/simulate`, body).then(j<{ meetingId: string | null; transcript: string }>),
+
+  audioDevices: () => fetch("/api/audio/devices").then(j<{ index: number; name: string; channels: number }[]>),
+  liveStart: (id: string, device: number) => post(`/api/clients/${id}/live/start`, { device }).then(j),
+  liveStop: (id: string) => post(`/api/clients/${id}/live/stop`).then(j<{ id: string | null; empty: boolean }>),
 };
 
 export const money = (n: number | null | undefined) =>
