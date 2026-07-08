@@ -236,7 +236,12 @@ export default function ClientHome() {
             </Collapsible>
 
             {fin && (fin.accounts?.length || fin.risk_tolerance) && (
-              <Collapsible title="Financial snapshot" meta={client.netWorth != null ? money(client.netWorth) : undefined}>
+              <Collapsible title="Financial snapshot">
+                {client.netWorth != null && (
+                  <div className="mb-4 font-display text-2xl tabular-nums text-paper">
+                    {money(client.netWorth)}
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   {fin.accounts?.map((a, i) => (
                     <div key={i} className="flex justify-between text-sm">

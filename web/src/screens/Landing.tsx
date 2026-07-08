@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, money } from "../api";
 import type { ClientSummary } from "../types";
 import { TopBar, Page, AddClientModal } from "../Shell";
-import { Card, Eyebrow, Spinner } from "../ui";
+import { Card, Spinner } from "../ui";
 
 export default function Landing() {
   const [clients, setClients] = useState<ClientSummary[] | null>(null);
@@ -19,10 +19,7 @@ export default function Landing() {
       <TopBar />
       <Page>
         <div className="mb-10 mt-6">
-          <Eyebrow>Advisory practice</Eyebrow>
-          <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-paper">
-            Clients
-          </h1>
+          <h1 className="font-display text-4xl font-medium tracking-tight text-paper">Clients</h1>
         </div>
 
         {clients === null ? (
