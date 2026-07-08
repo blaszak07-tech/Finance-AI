@@ -53,6 +53,27 @@ function AskPanel({ id }: { id: string }) {
   );
 }
 
+function QuickLook({ id }: { id: string }) {
+  const [md, setMd] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = () => {
+    if (md || loading) return;
+    setLoading(true);
+    api
+      .quicklook(id)
+      .then((r) => setMd(r.markdown))
+      .catch(() => setMd("_Couldn't generate the quick look right now._"))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <Collapsible title="Client quick look" onOpen={load}>
+      {md ? <Markdown>{md}</Markdown> : <Spinner />}
+    </Collapsible>
+  );
+}
+
 function ManageMenu({ client, onChange }: { client: ClientDetail; onChange: () => void }) {
   const [mode, setMode] = useState<null | "rename" | "delete">(null);
   const [name, setName] = useState(client.name);
@@ -196,17 +217,8 @@ export default function ClientHome() {
               )}
             </Collapsible>
 
-            {Object.keys(client.profile).length > 0 && (
-              <Collapsible title="Known facts">
-                <div className="space-y-1.5">
-                  {Object.entries(client.profile).map(([k, v]) => (
-                    <div key={k} className="text-sm">
-                      <span className="text-mute">{k.replace(/_/g, " ")}: </span>
-                      <span className="text-mist">{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
-              </Collapsible>
+            {(client.meetings.length > 0 || Object.keys(client.profile).length > 0) && (
+              <QuickLook id={client.id} />
             )}
           </div>
 

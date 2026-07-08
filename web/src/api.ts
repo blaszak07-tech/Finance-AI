@@ -32,6 +32,7 @@ export const api = {
     }).then(j<ClientSummary>),
   deleteClient: (id: string) => fetch(`/api/clients/${id}`, { method: "DELETE" }).then(j),
 
+  quicklook: (id: string) => fetch(`/api/clients/${id}/quicklook`).then(j<{ markdown: string }>),
   meeting: (id: string, mid: string) => fetch(`/api/clients/${id}/meetings/${mid}`).then(j<Meeting>),
   createMeeting: (id: string, notes: string) =>
     post(`/api/clients/${id}/meetings`, { notes }).then(j<{ id: string }>),

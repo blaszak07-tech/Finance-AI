@@ -72,17 +72,24 @@ export function Collapsible({
   meta,
   children,
   defaultOpen = false,
+  onOpen,
 }: {
   title: string;
   meta?: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
+  onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) onOpen?.();
+  };
   return (
     <div className="rounded-xl border border-line bg-surface">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="flex w-full items-center justify-between px-5 py-4 text-left"
       >
         <span className="flex items-center gap-3">

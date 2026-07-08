@@ -25,6 +25,7 @@ from src.search import build_index, search_index
 from src.agents import run_panel
 from src.tool_agent import run_agent
 from src.simulator import simulate_conversation
+from src.overview import client_quicklook
 
 app = FastAPI(title="WM Assistant API")
 
@@ -134,6 +135,13 @@ def remove_client(client_id: str):
 
 
 # ── Meetings ─────────────────────────────────────────────────
+@app.get("/api/clients/{client_id}/quicklook")
+async def quicklook(client_id: str):
+    if client_id not in storage.list_clients():
+        raise HTTPException(status_code=404, detail="Client not found")
+    return {"markdown": await _run(client_quicklook, client_id)}
+
+
 @app.get("/api/clients/{client_id}/meetings/{meeting_id}")
 def get_meeting(client_id: str, meeting_id: str):
     m = storage.load_meeting(client_id, meeting_id)
