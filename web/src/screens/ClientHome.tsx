@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { api, money } from "../api";
+import { api } from "../api";
 import type { ClientDetail, AgentResult } from "../types";
 import { TopBar, Page } from "../Shell";
 import { Card, Button, Eyebrow, Spinner, Markdown, Modal, Field, Collapsible } from "../ui";
@@ -164,16 +164,8 @@ export default function ClientHome() {
             <h1 className="mt-2 font-display text-5xl font-medium tracking-tight text-paper">
               {client.name}
             </h1>
-            <div className="mt-3 flex items-center gap-4 text-sm text-mist">
-              <span>
-                {client.meetings.length} {client.meetings.length === 1 ? "meeting" : "meetings"}
-              </span>
-              {client.netWorth != null && (
-                <>
-                  <span className="text-mute">·</span>
-                  <span className="tabular-nums text-gilt">{money(client.netWorth)} net worth</span>
-                </>
-              )}
+            <div className="mt-3 text-sm text-mist">
+              {client.meetings.length} {client.meetings.length === 1 ? "meeting" : "meetings"}
             </div>
           </div>
           <ManageMenu client={client} onChange={load} />

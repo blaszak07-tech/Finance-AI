@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, money } from "../api";
+import { api } from "../api";
 import type { ClientSummary } from "../types";
 import { TopBar, Page, AddClientModal } from "../Shell";
 import { Card, Spinner } from "../ui";
@@ -29,13 +29,8 @@ export default function Landing() {
             {clients.map((c) => (
               <Card key={c.id} onClick={() => nav(`/c/${c.id}`)} className="p-5">
                 <div className="font-display text-xl text-paper">{c.name}</div>
-                <div className="mt-4 flex items-baseline justify-between">
-                  <span className="text-sm text-mist">
-                    {c.meetingCount} {c.meetingCount === 1 ? "meeting" : "meetings"}
-                  </span>
-                  {c.netWorth != null && (
-                    <span className="text-sm tabular-nums text-gilt">{money(c.netWorth)}</span>
-                  )}
+                <div className="mt-4 text-sm text-mist">
+                  {c.meetingCount} {c.meetingCount === 1 ? "meeting" : "meetings"}
                 </div>
                 {c.lastMeeting && (
                   <div className="mt-1 text-xs text-mute">Last seen {c.lastMeeting}</div>
