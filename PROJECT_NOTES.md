@@ -55,9 +55,17 @@ just shipping a working app. Build for depth, explain the "why," don't just hand
 - ✅ Profile auto-extraction — facts extracted from notes and persisted after every meeting
 - ✅ Meeting history view — all past meetings per client, newest first, full output in tabs
 - **V1 complete.** GitHub remote live at github.com/blaszak07-tech/Finance-AI
-- **UI = 5 tabs: New Meeting · Voice · Ask · Agents · History.** (Simulate / Live Meeting tabs were
-  removed as redundant — Voice supersedes them. The simulator/chat *code* in `src/simulator.py` still
-  backs Voice: `simulate_conversation`, `ai_opening_line`, `ai_reply`.)
+- **NEW WEB FRONTEND (in progress — replacing Streamlit).** Slick dark "private-banking" React app
+  (Vite + React + TS + Tailwind v4) in `web/`, on a **FastAPI** backend (`api/server.py`) that wraps the
+  existing `src/` AI code. Run both with `./dev.sh` → open http://localhost:5173. Design: cool near-black
+  surfaces + muted-gold accent, Fraunces serif display + Inter UI; no "Run"/emoji/code-y labels.
+  Screens: Landing (client cards + name-only new client) → Client home (name hero, inline Ask powered by
+  the tool-loop agent, meeting timeline, financial snapshot folded in, rename/remove) → New meeting
+  (Paste / Live=V4 placeholder / Simulate) → Meeting view (summary/action items/flags/follow-up/transcript
+  tabs + "Analyze" = specialist panel). Eval runs in the background (stored, not shown as badges). Ask +
+  Auto-Agent merged into one smart Ask; specialist analysis folded into the meeting. The **Streamlit
+  `app.py` still exists** but is being superseded. Real-time voice = still the separate `live/bot.py`.
+- **(Legacy) Streamlit UI = 5 tabs: New Meeting · Voice · Ask · Agents · History.**
 - **New Meeting** = paste a raw transcript/notes → run pipeline → shows the 4 outputs inline + saves.
 - **Voice** pipeline auto-runs when a conversation ends; the meeting is saved and only the **summary**
   shows at the bottom of the transcript. Full output (action items, flags, email) is viewed in History.
