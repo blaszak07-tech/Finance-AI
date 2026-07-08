@@ -9,7 +9,6 @@ function AskPanel({ id }: { id: string }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<AgentResult | null>(null);
-  const [showTrace, setShowTrace] = useState(false);
 
   const ask = async () => {
     if (!q.trim()) return;
@@ -41,39 +40,13 @@ function AskPanel({ id }: { id: string }) {
 
       {busy && (
         <div className="mt-4">
-          <Spinner label="Searching history, consulting specialists…" />
+          <Spinner />
         </div>
       )}
 
       {res && (
         <div className="mt-5">
           <Markdown>{res.answer}</Markdown>
-          {res.steps.length > 0 && (
-            <div className="mt-4 border-t border-line-soft pt-3">
-              <button
-                onClick={() => setShowTrace((s) => !s)}
-                className="text-xs text-mute transition-colors hover:text-mist"
-              >
-                {showTrace ? "Hide reasoning" : `How it answered · ${res.steps.filter((s) => s.type === "action").length} steps`}
-              </button>
-              {showTrace && (
-                <div className="mt-3 space-y-2">
-                  {res.steps.map((s, i) =>
-                    s.type === "action" ? (
-                      <div key={i} className="text-xs text-mist">
-                        <span className="text-gilt">{s.tool}</span>
-                        <span className="text-mute"> · {JSON.stringify(s.input)}</span>
-                      </div>
-                    ) : (
-                      <div key={i} className="text-xs italic text-mute">
-                        {s.text}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </Card>
