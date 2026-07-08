@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { api, money } from "../api";
 import type { ClientDetail, AgentResult } from "../types";
 import { TopBar, Page } from "../Shell";
-import { Card, Button, Eyebrow, Spinner, Markdown, Modal, Field, TextArea } from "../ui";
+import { Card, Button, Eyebrow, Spinner, Markdown, Modal, Field, Collapsible } from "../ui";
 
 function AskPanel({ id }: { id: string }) {
   const [q, setQ] = useState("");
@@ -83,6 +83,7 @@ function AskPanel({ id }: { id: string }) {
 function ManageMenu({ client, onChange }: { client: ClientDetail; onChange: () => void }) {
   const [mode, setMode] = useState<null | "rename" | "delete">(null);
   const [name, setName] = useState(client.name);
+  const [confirm, setConfirm] = useState("");
   const nav = useNavigate();
 
   return (
@@ -91,7 +92,13 @@ function ManageMenu({ client, onChange }: { client: ClientDetail; onChange: () =
         <button className="text-mute transition-colors hover:text-mist" onClick={() => setMode("rename")}>
           Rename
         </button>
-        <button className="text-mute transition-colors hover:text-[#c98b8b]" onClick={() => setMode("delete")}>
+        <button
+          className="text-mute transition-colors hover:text-[#c98b8b]"
+          onClick={() => {
+            setConfirm("");
+            setMode("delete");
+          }}
+        >
           Remove
         </button>
       </div>
@@ -120,16 +127,24 @@ function ManageMenu({ client, onChange }: { client: ClientDetail; onChange: () =
       {mode === "delete" && (
         <Modal onClose={() => setMode(null)}>
           <h2 className="mb-2 font-display text-xl">Remove {client.name}?</h2>
-          <p className="mb-6 text-sm text-mist">
-            This permanently deletes the client and all {client.meetings.length} meetings.
+          <p className="mb-5 text-sm text-mist">
+            This permanently deletes the client and all {client.meetings.length} meetings. This can't be
+            undone.
           </p>
-          <div className="flex justify-end gap-2">
+          <Field
+            label={`Type "${client.name}" to confirm`}
+            value={confirm}
+            autoFocus
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+          <div className="mt-6 flex justify-end gap-2">
             <Button variant="quiet" onClick={() => setMode(null)}>
               Cancel
             </Button>
             <Button
               variant="primary"
               className="bg-[#c98b8b] hover:bg-[#d8a0a0]"
+              disabled={confirm.trim() !== client.name}
               onClick={async () => {
                 await api.deleteClient(client.id);
                 nav("/");
@@ -199,42 +214,30 @@ export default function ClientHome() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Left: ask + meetings */}
-          <div className="space-y-6 lg:col-span-2">
-            <AskPanel id={client.id} />
+        <div className="space-y-6">
+          <AskPanel id={client.id} />
 
-            <div>
-              <Eyebrow>Meetings</Eyebrow>
-              <div className="mt-3 space-y-2">
-                {client.meetings.length === 0 && (
-                  <Card className="p-5 text-sm text-mute">
-                    No meetings yet. Start one to build this client's picture.
-                  </Card>
-                )}
-                {client.meetings.map((m) => (
-                  <Card key={m.id} onClick={() => nav(`/c/${client.id}/m/${m.id}`)} className="p-4">
-                    <div className="text-xs text-mute">{m.timestamp}</div>
-                    <div className="mt-1.5 line-clamp-2 text-sm text-mist">
-                      {m.summary.replace(/[#*`]/g, "").slice(0, 200)}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
+          <div className="space-y-3">
+            <Collapsible title="Meetings" meta={client.meetings.length || undefined}>
+              {client.meetings.length === 0 ? (
+                <p className="text-sm text-mute">No meetings yet. Start one to build this client's picture.</p>
+              ) : (
+                <div className="space-y-2">
+                  {client.meetings.map((m) => (
+                    <Card key={m.id} onClick={() => nav(`/c/${client.id}/m/${m.id}`)} className="p-4">
+                      <div className="text-xs text-mute">{m.timestamp}</div>
+                      <div className="mt-1.5 line-clamp-2 text-sm text-mist">
+                        {m.summary.replace(/[#*`]/g, "").slice(0, 200)}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </Collapsible>
 
-          {/* Right: snapshot */}
-          <div className="space-y-6">
             {fin && (fin.accounts?.length || fin.risk_tolerance) && (
-              <Card className="p-5">
-                <Eyebrow>Financial snapshot</Eyebrow>
-                {client.netWorth != null && (
-                  <div className="mt-3 font-display text-3xl tabular-nums text-paper">
-                    {money(client.netWorth)}
-                  </div>
-                )}
-                <div className="mt-4 space-y-1.5">
+              <Collapsible title="Financial snapshot" meta={client.netWorth != null ? money(client.netWorth) : undefined}>
+                <div className="space-y-1.5">
                   {fin.accounts?.map((a, i) => (
                     <div key={i} className="flex justify-between text-sm">
                       <span className="text-mist">{a.name}</span>
@@ -248,13 +251,12 @@ export default function ClientHome() {
                     <span className="text-mist">{fin.risk_tolerance}</span>
                   </div>
                 )}
-              </Card>
+              </Collapsible>
             )}
 
             {Object.keys(client.profile).length > 0 && (
-              <Card className="p-5">
-                <Eyebrow>Known facts</Eyebrow>
-                <div className="mt-3 space-y-1.5">
+              <Collapsible title="Known facts">
+                <div className="space-y-1.5">
                   {Object.entries(client.profile).map(([k, v]) => (
                     <div key={k} className="text-sm">
                       <span className="text-mute">{k.replace(/_/g, " ")}: </span>
@@ -262,7 +264,7 @@ export default function ClientHome() {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </Collapsible>
             )}
           </div>
         </div>

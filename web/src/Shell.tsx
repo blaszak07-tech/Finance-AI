@@ -60,10 +60,15 @@ export function AddClientModal({
   );
 }
 
-function ClientSwitcher({ current }: { current: { id: string; name: string } }) {
+function ClientSwitcher({
+  current,
+  onNewClient,
+}: {
+  current: { id: string; name: string };
+  onNewClient: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [clients, setClients] = useState<ClientSummary[]>([]);
-  const [adding, setAdding] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const nav = useNavigate();
 
@@ -111,7 +116,7 @@ function ClientSwitcher({ current }: { current: { id: string; name: string } }) 
           <button
             onClick={() => {
               setOpen(false);
-              setAdding(true);
+              onNewClient();
             }}
             className="w-full border-t border-line px-4 py-2.5 text-left text-sm text-mist transition-colors hover:bg-raised hover:text-paper"
           >
@@ -119,18 +124,26 @@ function ClientSwitcher({ current }: { current: { id: string; name: string } }) 
           </button>
         </div>
       )}
-      {adding && (
-        <AddClientModal onClose={() => setAdding(false)} onCreated={(c) => nav(`/c/${c.id}`)} />
-      )}
     </div>
   );
 }
 
 export function TopBar({ current }: { current?: { id: string; name: string } }) {
+  const [adding, setAdding] = useState(false);
+  const nav = useNavigate();
   return (
-    <header className="relative z-10 mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+    <header className="relative z-20 mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
       <Wordmark />
-      {current && <ClientSwitcher current={current} />}
+      {current && <ClientSwitcher current={current} onNewClient={() => setAdding(true)} />}
+      {adding && (
+        <AddClientModal
+          onClose={() => setAdding(false)}
+          onCreated={(c) => {
+            setAdding(false);
+            nav(`/c/${c.id}`);
+          }}
+        />
+      )}
     </header>
   );
 }

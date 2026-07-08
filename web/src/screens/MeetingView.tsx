@@ -1,79 +1,38 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import type { Meeting, PanelResult } from "../types";
+import type { Meeting } from "../types";
 import { TopBar, Page } from "../Shell";
-import { Card, Button, Eyebrow, Spinner, Markdown } from "../ui";
+import { Card, Eyebrow, Spinner, Markdown } from "../ui";
 
 const TABS = [
   ["summary", "Summary"],
   ["action_items", "Action items"],
   ["flags", "Planning flags"],
-  ["email", "Follow-up"],
   ["notes", "Transcript"],
 ] as const;
 
 type TabKey = (typeof TABS)[number][0];
 
-function Analysis({ id, mid }: { id: string; mid: string }) {
-  const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<PanelResult | null>(null);
+function Transcript({ text }: { text: string }) {
+  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  const isDialog = blocks.some((b) => /^[A-Z][a-zA-Z]+\s*:/.test(b));
 
-  const run = async () => {
-    setBusy(true);
-    try {
-      setRes(await api.analyze(id, mid));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!res)
-    return (
-      <Card className="p-6">
-        <Eyebrow>Specialist analysis</Eyebrow>
-        <p className="mt-2 max-w-xl text-sm text-mist">
-          Route this meeting to the relevant specialists — retirement, tax, portfolio risk — who review
-          it, respond to each other, and hand up a single prioritized plan.
-        </p>
-        <div className="mt-4 flex items-center gap-3">
-          <Button variant="primary" onClick={run} disabled={busy}>
-            {busy ? "Convening…" : "Analyze"}
-          </Button>
-          {busy && <Spinner label="Specialists reviewing & conferring…" />}
-        </div>
-      </Card>
-    );
+  if (!isDialog)
+    return <p className="whitespace-pre-wrap text-sm leading-relaxed text-mist">{text}</p>;
 
   return (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <Eyebrow>Recommended plan</Eyebrow>
-        <div className="mt-3">
-          <Markdown>{res.synthesis}</Markdown>
-        </div>
-      </Card>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {res.round1.map((f) => {
-          const cross = res.cross.find((c) => c.key === f.key);
-          return (
-            <Card key={f.key} className="p-5">
-              <div className="text-sm font-medium text-gilt">{f.label}</div>
-              <div className="mt-2">
-                <Markdown>{f.text}</Markdown>
-              </div>
-              {cross && (
-                <div className="mt-3 border-t border-line-soft pt-3">
-                  <div className="text-xs uppercase tracking-wider text-mute">On the others</div>
-                  <div className="mt-1">
-                    <Markdown>{cross.text}</Markdown>
-                  </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+    <div className="space-y-5">
+      {blocks.map((b, i) => {
+        const m = b.match(/^([A-Za-z][A-Za-z ]+?)\s*:\s*([\s\S]*)$/);
+        if (!m) return <p key={i} className="text-sm text-mist">{b}</p>;
+        return (
+          <div key={i}>
+            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-gilt">{m[1]}</div>
+            <p className="mt-1 text-sm leading-relaxed text-mist">{m[2]}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -83,7 +42,6 @@ export default function MeetingView() {
   const nav = useNavigate();
   const [m, setM] = useState<Meeting | null>(null);
   const [tab, setTab] = useState<TabKey>("summary");
-  const [showAnalysis, setShowAnalysis] = useState(false);
 
   useEffect(() => {
     api.meeting(id!, mid!).then(setM).catch(() => {});
@@ -110,23 +68,12 @@ export default function MeetingView() {
           ← Back to client
         </button>
 
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <Eyebrow>Meeting</Eyebrow>
-            <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-paper">
-              {m._timestamp}
-            </h1>
-          </div>
-          <Button variant="ghost" onClick={() => setShowAnalysis((s) => !s)}>
-            {showAnalysis ? "Hide analysis" : "Analyze"}
-          </Button>
+        <div className="mb-6">
+          <Eyebrow>Meeting</Eyebrow>
+          <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-paper">
+            {m._timestamp}
+          </h1>
         </div>
-
-        {showAnalysis && (
-          <div className="mb-8">
-            <Analysis id={id!} mid={mid!} />
-          </div>
-        )}
 
         <div className="mb-5 flex flex-wrap gap-1 border-b border-line">
           {TABS.map(([key, label]) => (
@@ -145,13 +92,7 @@ export default function MeetingView() {
         </div>
 
         <Card className="p-6">
-          {tab === "notes" ? (
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-mist">
-              {m.notes}
-            </pre>
-          ) : (
-            <Markdown>{m[tab] || "—"}</Markdown>
-          )}
+          {tab === "notes" ? <Transcript text={m.notes} /> : <Markdown>{m[tab] || "—"}</Markdown>}
         </Card>
       </Page>
     </>

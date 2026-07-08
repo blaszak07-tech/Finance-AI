@@ -1,4 +1,4 @@
-import { type ReactNode, type ButtonHTMLAttributes, useEffect } from "react";
+import { type ReactNode, type ButtonHTMLAttributes, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -50,6 +50,49 @@ export function Card({
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-mute">{children}</div>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={`text-mute transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+    >
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function Collapsible({
+  title,
+  meta,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  meta?: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-line bg-surface">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left"
+      >
+        <span className="flex items-center gap-3">
+          <Eyebrow>{title}</Eyebrow>
+          {meta != null && <span className="text-xs text-mute">{meta}</span>}
+        </span>
+        <Chevron open={open} />
+      </button>
+      {open && <div className="border-t border-line-soft px-5 py-4">{children}</div>}
+    </div>
   );
 }
 
