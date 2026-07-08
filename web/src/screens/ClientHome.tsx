@@ -198,29 +198,27 @@ export default function ClientHome() {
           </Button>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <Collapsible title="Meetings" meta={client.meetings.length || undefined}>
-              {client.meetings.length === 0 ? (
-                <p className="text-sm text-mute">No meetings yet. Start one to build this client's picture.</p>
-              ) : (
-                <div className="space-y-2">
-                  {client.meetings.map((m) => (
-                    <Card key={m.id} onClick={() => nav(`/c/${client.id}/m/${m.id}`)} className="p-4">
-                      <div className="text-xs text-mute">{m.timestamp}</div>
-                      <div className="mt-1.5 line-clamp-2 text-sm text-mist">
-                        {m.summary.replace(/[#*`]/g, "").slice(0, 200)}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </Collapsible>
-
-            {(client.meetings.length > 0 || Object.keys(client.profile).length > 0) && (
-              <QuickLook id={client.id} />
+        <div className="space-y-3">
+          <Collapsible title="Meetings" meta={client.meetings.length || undefined}>
+            {client.meetings.length === 0 ? (
+              <p className="text-sm text-mute">No meetings yet. Start one to build this client's picture.</p>
+            ) : (
+              <div className="space-y-2">
+                {client.meetings.map((m) => (
+                  <Card key={m.id} onClick={() => nav(`/c/${client.id}/m/${m.id}`)} className="p-4">
+                    <div className="text-xs text-mute">{m.timestamp}</div>
+                    <div className="mt-1.5 line-clamp-2 text-sm text-mist">
+                      {m.summary.replace(/[#*`]/g, "").slice(0, 200)}
+                    </div>
+                  </Card>
+                ))}
+              </div>
             )}
-          </div>
+          </Collapsible>
+
+          {(client.meetings.length > 0 || Object.keys(client.profile).length > 0) && (
+            <QuickLook id={client.id} />
+          )}
 
           <AskPanel id={client.id} />
         </div>
