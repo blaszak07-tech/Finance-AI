@@ -25,21 +25,33 @@ def save_meeting(client_id: str, meeting: dict) -> Path:
     return filepath
 
 
+def _pretty_timestamp(stem: str) -> str:
+    try:
+        return datetime.strptime(stem, "%Y%m%d_%H%M%S").strftime("%B %d, %Y — %I:%M %p")
+    except ValueError:
+        return stem
+
+
 def load_meetings(client_id: str) -> list[dict]:
     meetings_dir = _meetings_dir(client_id)
     files = sorted(meetings_dir.glob("*.json"), reverse=True)  # newest first
     meetings = []
     for f in files:
         data = json.loads(f.read_text())
-        # Parse timestamp from filename: YYYYMMDD_HHMMSS.json
-        stem = f.stem
-        try:
-            from datetime import datetime
-            data["_timestamp"] = datetime.strptime(stem, "%Y%m%d_%H%M%S").strftime("%B %d, %Y — %I:%M %p")
-        except ValueError:
-            data["_timestamp"] = stem
+        data["id"] = f.stem
+        data["_timestamp"] = _pretty_timestamp(f.stem)
         meetings.append(data)
     return meetings
+
+
+def load_meeting(client_id: str, meeting_id: str) -> dict | None:
+    filepath = _meetings_dir(client_id) / f"{meeting_id}.json"
+    if not filepath.exists():
+        return None
+    data = json.loads(filepath.read_text())
+    data["id"] = meeting_id
+    data["_timestamp"] = _pretty_timestamp(meeting_id)
+    return data
 
 
 def save_profile(client_id: str, profile: dict) -> None:
@@ -72,13 +84,48 @@ def list_clients() -> list[str]:
     return [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
 
 
+def _id_from_name(name: str) -> str:
+    return name.strip().lower().replace(" ", "_")
+
+
+def create_client(name: str) -> str:
+    """Create a client (name only). Persists a display name in meta.json."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Client name is required.")
+    client_id = _id_from_name(name)
+    path = DATA_DIR / client_id
+    if path.exists():
+        raise ValueError(f"A client named '{name}' already exists.")
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "meta.json").write_text(json.dumps({
+        "name": name,
+        "created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }, indent=2))
+    return client_id
+
+
+def client_name(client_id: str) -> str:
+    """Display name for a client — from meta.json, falling back to a title-cased id."""
+    meta = DATA_DIR / client_id / "meta.json"
+    if meta.exists():
+        try:
+            return json.loads(meta.read_text()).get("name") or client_id.replace("_", " ").title()
+        except json.JSONDecodeError:
+            pass
+    return client_id.replace("_", " ").title()
+
+
 def rename_client(old_id: str, new_name: str) -> str:
-    new_id = new_name.strip().lower().replace(" ", "_")
+    new_name = new_name.strip()
+    new_id = _id_from_name(new_name)
     old_path = DATA_DIR / old_id
     new_path = DATA_DIR / new_id
-    if new_path.exists():
+    if new_id != old_id and new_path.exists():
         raise ValueError(f"A client named '{new_name}' already exists.")
-    old_path.rename(new_path)
+    if new_id != old_id:
+        old_path.rename(new_path)
+    (new_path / "meta.json").write_text(json.dumps({"name": new_name}, indent=2))
     return new_id
 
 
