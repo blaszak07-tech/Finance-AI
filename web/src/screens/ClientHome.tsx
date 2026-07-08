@@ -153,8 +153,6 @@ export default function ClientHome() {
       </>
     );
 
-  const fin = client.financials;
-
   return (
     <>
       <TopBar current={{ id: client.id, name: client.name }} />
@@ -188,8 +186,6 @@ export default function ClientHome() {
         </div>
 
         <div className="space-y-6">
-          <AskPanel id={client.id} />
-
           <div className="space-y-3">
             <Collapsible title="Meetings" meta={client.meetings.length || undefined}>
               {client.meetings.length === 0 ? (
@@ -208,30 +204,6 @@ export default function ClientHome() {
               )}
             </Collapsible>
 
-            {fin && (fin.accounts?.length || fin.risk_tolerance) && (
-              <Collapsible title="Financial snapshot">
-                {client.netWorth != null && (
-                  <div className="mb-4 font-display text-2xl tabular-nums text-paper">
-                    {money(client.netWorth)}
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  {fin.accounts?.map((a, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-mist">{a.name}</span>
-                      <span className="tabular-nums text-paper">{money(a.balance)}</span>
-                    </div>
-                  ))}
-                </div>
-                {fin.risk_tolerance && (
-                  <div className="mt-4 border-t border-line-soft pt-3 text-sm">
-                    <span className="text-mute">Risk tolerance</span>{" "}
-                    <span className="text-mist">{fin.risk_tolerance}</span>
-                  </div>
-                )}
-              </Collapsible>
-            )}
-
             {Object.keys(client.profile).length > 0 && (
               <Collapsible title="Known facts">
                 <div className="space-y-1.5">
@@ -245,6 +217,8 @@ export default function ClientHome() {
               </Collapsible>
             )}
           </div>
+
+          <AskPanel id={client.id} />
         </div>
       </Page>
     </>
